@@ -188,6 +188,22 @@ def index():
     return redirect(url_for("login"))
 
 if __name__ == "__main__":
+    from app import db, Admin, app
+
     with app.app_context():
+        print("📦 Initializing database...")
         db.create_all()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+
+        # 初期管理者アカウントがなければ追加
+        if not Admin.query.first():
+            admin = Admin(
+                account_id="admin",
+                account_password="pass",
+                name="管理者",
+                role="admin"
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Default admin user created.")
+
+    app.run(host="0.0.0.0", port=5000)
