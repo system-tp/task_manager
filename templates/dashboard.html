@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスクカレンダー</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f5f6fa;
+            margin: 0; 
+            padding: 20px;
+        }
+        h2 { color: #2f3640; }
+
+        a { color: #3498db; text-decoration: none; margin-right: 10px; }
+        a:hover { text-decoration: underline; }
+
+        .scroll { overflow-x: auto; }
+
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            white-space: nowrap; 
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background-color: #fff;
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 4px 6px; 
+            text-align: center; 
+            vertical-align: middle;
+        }
+        th { 
+            background: linear-gradient(to bottom, #6c5ce7, #a29bfe);
+            color: #fff;
+            position: sticky; 
+            top: 0; 
+            z-index: 2; 
+            font-weight: bold;
+        }
+        .group-row td {
+            background-color: #dcdde1;
+            font-weight: bold;
+            text-align: left;
+            font-size: 1rem;
+        }
+        .user-row td { 
+            background-color: #f1f2f6; 
+            text-align: left; 
+            font-weight: bold; 
+            font-size: 0.95rem;
+        }
+
+        td.today { background-color: #ffb6c1; }
+
+        .status-btn {
+            width: 30px;
+            height: 24px;
+            font-size: 0.8rem;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            color: #fff;
+            font-weight: bold;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+            transition: none;
+        }
+
+        .status-btn:hover { transform: none; box-shadow: none; }
+
+        .status-0 { background-color: #e74c3c; }
+        .status-1 { background-color: #2980b9; }
+        .status-2 { background-color: #f1c40f; color: #000; }
+
+        .status-btn:disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        button[type=submit] {
+            padding: 8px 16px;
+            background-color: #6c5ce7;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s, transform 0.1s;
+        }
+        button[type=submit]:hover {
+            background-color: #a29bfe;
+            transform: translateY(-2px);
+        }
+
+        .scroll::-webkit-scrollbar { height: 12px; }
+        .scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 6px; }
+        .scroll::-webkit-scrollbar-track { background: #f0f0f0; }
+
+    </style>
+</head>
+<body>
+
+<h2>タスクカレンダー</h2>
+
+<div>
+    <a href="{{ url_for('dashboard', view='week') }}">週表示</a>
+    <a href="{{ url_for('dashboard', view='month') }}">月表示</a>
+</div>
+
+<div style="margin: 10px 0;">
+    {% if view_mode == 'week' %}
+        <a href="{{ url_for('dashboard', view='week', week=prev_week) }}">前週</a>
+        <a href="{{ url_for('dashboard', view='week', week=next_week) }}">次週</a>
+    {% else %}
+        <a href="{{ url_for('dashboard', view='month', week=prev_week) }}">前月</a>
+        <a href="{{ url_for('dashboard', view='month', week=next_week) }}">次月</a>
+    {% endif %}
+</div>
+
+<form method="post">
+<div class="scroll">
+<table>
+    <thead>
+        <tr>
+            <th>タスク</th>
+            {% for day in days %}
+                <th>
+                    {{ day.strftime("%m/%d") }}<br>
+                    {% set weekday = day.weekday() %}
+                    {% if weekday == 6 %}日{% elif weekday == 0 %}月{% elif weekday == 1 %}火{% elif weekday == 2 %}水{% elif weekday == 3 %}木{% elif weekday == 4 %}金{% else %}土{% endif %}
+                </th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for group, users_in_group in groups.items() %}
+            <tr class="group-row">
+                <td colspan="{{ days|length + 1 }}">{{ group }}</td>
+            </tr>
+
+            {% for user in users_in_group %}
+                <tr class="user-row">
+                    <td colspan="{{ days|length + 1 }}">{{ user.name }}</td>
+                </tr>
+
+                {% for task in tasks if task.user_id == user.id %}
+                <tr>
+                    <td>{{ task.name }}</td>
+                    {% for day in days %}
+                    <td class="{% if day == today %}today{% endif %}">
+                        {% set status = status_dict.get(task.taskkey, {}).get(day, 0) %}
+                        <button type="button" class="status-btn status-{{ status }}" 
+                            data-task="{{ task.taskkey }}" data-day="{{ day.isoformat() }}"
+                            {% if day > today %}disabled{% endif %}>
+                            {% if status == 0 %}未{% elif status == 1 %}済{% else %}休{% endif %}
+                        </button>
+                        <input type="hidden" name="task_{{ task.taskkey }}_{{ day.isoformat() }}" 
+                               id="hidden_{{ task.taskkey }}_{{ day.isoformat() }}" value="{{ status }}">
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<br>
+<button type="submit">保存</button>
+</form>
+<br>
+<a href="{{ url_for('logout') }}">ログアウト</a>
+
+<script>
+document.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if(btn.disabled) return;
+
+        let current = 0;
+        if (btn.classList.contains('status-0')) current = 0;
+        else if (btn.classList.contains('status-1')) current = 1;
+        else if (btn.classList.contains('status-2')) current = 2;
+
+        let next = (current + 1) % 3;
+        btn.classList.remove('status-0', 'status-1', 'status-2');
+        btn.classList.add('status-' + next);
+
+        if (next == 0) btn.textContent = "未";
+        else if (next == 1) btn.textContent = "済";
+        else btn.textContent = "休";
+
+        let hidden = document.getElementById(`hidden_${btn.dataset.task}_${btn.dataset.day}`);
+        if (hidden) hidden.value = next;
+    });
+});
+</script>
+
+</body>
+</html>
