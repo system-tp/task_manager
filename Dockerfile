@@ -1,24 +1,23 @@
 # ベースイメージ
 FROM python:3.11-slim
 
-# 作業ディレクトリ
+# 作業ディレクトリ作成
 WORKDIR /app
 
-# 依存関係をコピーしてインストール
+# システム依存ライブラリをインストール（PostgreSQL ドライバ用）
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 必要なファイルをコピー
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# アプリをコピー
 COPY . .
 
-# 環境変数で DB 接続を設定する
-# render.com の PostgreSQL は DATABASE_URL が提供される
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=production
-ENV SQLALCHEMY_DATABASE_URI=${DATABASE_URL}
+# 環境変数でポートを指定
+ENV PORT=5000
 
-# ポート設定
-EXPOSE 5000
-
-# コンテナ起動時に実行
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
+# Render は gunicorn を推奨
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]

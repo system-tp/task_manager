@@ -6,7 +6,10 @@ import calendar
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secretkey')  # 環境変数から取得
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secretkey')
+
+# --- DATABASE ---
+# Supabase など外部 PostgreSQL に接続可能
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
     'DATABASE_URL',
     'postgresql://taskuser:wpekusj9@localhost/task_manager'  # ローカル用フォールバック
@@ -15,12 +18,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# --- LOGIN ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
-# --- モデル ---
+# --- MODELS ---
 class Admin(UserMixin, db.Model):
+    __tablename__ = "admin"
     account_id = db.Column(db.String(50), primary_key=True)
     name = db.Column(db.String(50))
     account_password = db.Column(db.String(50))  # 平文
@@ -50,17 +55,17 @@ class Task(db.Model):
     name = db.Column(db.String(100), nullable=False)
 
 class TaskStatus(db.Model):
-    # 複合主キーに変更
     user_id = db.Column(db.Integer, db.ForeignKey('user.userid'), primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.taskkey'), primary_key=True)
     date = db.Column(db.Date, primary_key=True)
     status = db.Column(db.Integer, default=0)  # 0:未, 1:済, 2:休
 
-# --- ログイン ---
+# --- LOGIN MANAGER ---
 @login_manager.user_loader
 def load_user(account_id):
     return Admin.query.get(account_id)
 
+# --- ROUTES ---
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -124,29 +129,21 @@ def dashboard():
         try:
             with db.session.no_autoflush:
                 for key, value in request.form.items():
-                    print(f"{key} = '{value}'")
                     if key.startswith("task_"):
                         _, taskkey, day_str = key.split("_", 2)
                         taskkey = int(taskkey)
                         day_date = date.fromisoformat(day_str)
-
-                        # 空文字はスキップ
                         if not value or value.strip() == '':
                             continue
-
                         status = int(value)
-
-                        # taskkey から user_id を取得
                         task = Task.query.get(taskkey)
                         if not task:
                             continue
-
                         ts = TaskStatus.query.filter_by(
                             user_id=task.user_id,
                             task_id=taskkey,
                             date=day_date
                         ).with_for_update().first()
-
                         if not ts:
                             ts = TaskStatus(
                                 user_id=task.user_id,
@@ -187,8 +184,15 @@ def dashboard():
 def index():
     return redirect(url_for("login"))
 
+# --- APP RUN ---
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        # --- 初回 Admin 自動作成 ---
+        if not Admin.query.get("admin"):
+            admin = Admin(account_id="admin", name="Administrator", account_password="admin", role="super_admin")
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ 初回 admin アカウント作成完了 (ID: admin / パスワード: admin)")
         print("✅ Tables created successfully!")
     app.run(host="0.0.0.0", port=5000)
