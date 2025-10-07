@@ -135,19 +135,27 @@ def dashboard():
         prev_week = (start_day - timedelta(days=7)).isoformat()
         next_week = (start_day + timedelta(days=7)).isoformat()
 
+    from math import ceil
+
     # --- 現在のステータス取得 ---
     status_dict = {}
-
-    # taskkeys に None を含まないようにする
     taskkeys = [t.taskkey for t in tasks if t.taskkey is not None]
 
+    def chunk_list(lst, n):
+        """リストを n 件ごとのチャンクに分割"""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+    # PostgreSQL は IN に 32~1000件までが安全
+    CHUNK_SIZE = 20  # 適宜調整可能
+
+    taskkeys = [t.taskkey for t in tasks if t.taskkey is not None]  # None除外
     if taskkeys:
-        # TaskStatus を取得
-        task_statuses = TaskStatus.query.filter(TaskStatus.task_id.in_(taskkeys)).all()
-        for ts in task_statuses:
-            if ts.task_id not in status_dict:
-                status_dict[ts.task_id] = {}
-            status_dict[ts.task_id][ts.date] = ts.status
+        for chunk in chunk_list(taskkeys, CHUNK_SIZE):
+            for ts in TaskStatus.query.filter(TaskStatus.task_id.in_(chunk)).all():
+                if ts.task_id not in status_dict:
+                    status_dict[ts.task_id] = {}
+                status_dict[ts.task_id][ts.date] = ts.status
 
     # --- POST保存処理（フォーム一括保存の互換処理） ---
     if request.method == "POST":
