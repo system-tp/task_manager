@@ -187,12 +187,15 @@ def index():
 # --- APP RUN ---
 if __name__ == "__main__":
     with app.app_context():
-        db.create_all()
-        # --- 初回 Admin 自動作成 ---
-        if not Admin.query.get("admin"):
-            admin = Admin(account_id="admin", name="Administrator", account_password="admin", role="super_admin")
-            db.session.add(admin)
-            db.session.commit()
-            print("✅ 初回 admin アカウント作成完了 (ID: admin / パスワード: admin)")
-        print("✅ Tables created successfully!")
+        try:
+            db.create_all()
+            # --- 初回 Admin 自動作成 ---
+            if not Admin.query.get("admin"):
+                admin = Admin(account_id="admin", name="Administrator", account_password="admin", role="super_admin")
+                db.session.add(admin)
+                db.session.commit()
+                print("✅ 初回 admin アカウント作成完了 (ID: admin / パスワード: admin)")
+            print("✅ Tables created successfully!")
+        except Exception as e:
+            print("❌ DB 作成エラー:", e)
     app.run(host="0.0.0.0", port=5000)
