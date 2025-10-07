@@ -1,119 +1,165 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>総務部　姿勢ルールチェック</title>
-    <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #f5f6fa;
-            margin: 0; 
-            padding: 20px;
-        }
-        h2 { color: #2f3640; }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>総務部　姿勢ルールチェック</title>
+<style>
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f6fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
-        a { color: #3498db; text-decoration: none; margin-right: 10px; }
-        a:hover { text-decoration: underline; }
+.table-wrapper {
+    width: 95%; 
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
 
-        .scroll { overflow-x: auto; }
+h2 {
+    margin: 0 0 5px 0;
+    color: #2f3640;
+}
 
-        table { 
-            border-collapse: collapse; 
-            width: 100%; 
-            white-space: nowrap; 
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            background-color: #fff;
-        }
-        th, td { 
-            border: 1px solid #ddd; 
-            padding: 4px 6px; 
-            text-align: center; 
-            vertical-align: middle;
-        }
-        th { 
-            background: linear-gradient(to bottom, #6c5ce7, #a29bfe);
-            color: #fff;
-            position: sticky; 
-            top: 0; 
-            z-index: 2; 
-            font-weight: bold;
-        }
-        .group-row td {
-            background-color: #dcdde1;
-            font-weight: bold;
-            text-align: left;
-            font-size: 1rem;
-        }
-        .user-row td { 
-            background-color: #f1f2f6; 
-            text-align: left; 
-            font-weight: bold; 
-            font-size: 0.95rem;
-        }
+.header-links {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+.header-links a {
+    text-decoration: none;
+    color: #3498db;
+}
 
-        td.today { background-color: #ffb6c1; }
+.header-links-bottom {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+.header-links-bottom a {
+    text-decoration: none;
+    color: #3498db;
+}
+.header-links-bottom a.logout {
+    margin-left: auto;
+}
 
-        .status-btn {
-            width: 30px;
-            height: 24px;
-            font-size: 0.8rem;
-            border: none;
-            cursor: pointer;
-            border-radius: 6px;
-            color: #fff;
-            font-weight: bold;
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto;
-            transition: none;
-        }
+.table-container {
+    flex: 1 1 auto;
+    overflow: auto;
+    background-color: #fff;
+}
 
-        .status-btn:hover { transform: none; box-shadow: none; }
+/* テーブル */
+table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    white-space: nowrap; 
+}
 
-        .status-0 { background-color: #e74c3c; }
-        .status-1 { background-color: #2980b9; }
-        .status-2 { background-color: #f1c40f; color: #000; }
+th, td { 
+    border: 1px solid #ddd; 
+    text-align: center; 
+    vertical-align: middle;
+    padding: 4px 6px;
+}
 
-        .status-btn:disabled {
-            background-color: #ccc;
-            color: #666;
-            cursor: not-allowed;
-        }
+/* ヘッダー固定 */
+th { 
+    background: linear-gradient(to bottom, #6c5ce7, #a29bfe);
+    color: #fff;
+    font-weight: bold;
+    position: sticky; 
+    top: 0; 
+    z-index: 3; 
+    line-height: 1.2; /* 高さを揃える */
+}
 
-        button[type=submit] {
-            padding: 8px 16px;
-            background-color: #6c5ce7;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s, transform 0.1s;
-        }
-        button[type=submit]:hover {
-            background-color: #a29bfe;
-            transform: translateY(-2px);
-        }
+/* 左端列固定（グループ・ユーザ・タスク名） */
+th:first-child, td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: #fff;
+    z-index: 2;
+    background-clip: padding-box; /* 下線のずれ防止 */
+}
 
-        .scroll::-webkit-scrollbar { height: 12px; }
-        .scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 6px; }
-        .scroll::-webkit-scrollbar-track { background: #f0f0f0; }
+/* 左上角優先表示 */
+thead th:first-child {
+    z-index: 4;
+}
 
-    </style>
+/* グループ行 */
+.group-row td {
+    background-color: #dcdde1;
+    font-weight: bold;
+    text-align: left;
+    padding-left: 10px;
+    font-size: 1rem;
+    height: auto; /* 高さ自動 */
+}
+
+/* ユーザー行 */
+.user-row td { 
+    background-color: #f1f2f6; 
+    text-align: left; 
+    font-weight: bold; 
+    padding-left: 20px;
+    font-size: 0.95rem;
+    height: auto; /* 高さ自動 */
+}
+
+/* タスク行インデント */
+td.task-name {
+    text-align: left;
+    padding-left: 40px;
+    height: auto; /* 高さ自動 */
+}
+
+/* ステータスボタン */
+.status-btn {
+    width: 30px;
+    height: 24px;
+    font-size: 0.8rem;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.status-0 { background-color: #e74c3c; }
+.status-1 { background-color: #2980b9; }
+.status-2 { background-color: #f1c40f; color: #000; }
+.status-btn:disabled {
+    background-color: #ccc;
+    color: #666;
+    cursor: not-allowed;
+}
+</style>
 </head>
 <body>
 
-<h2>総務部　姿勢ルールチェック</h2>
+<div class="table-wrapper">
 
-<div>
+<h2 align="center">総務部　姿勢ルールチェック</h2>
+
+<!-- 上段：週/月切替 -->
+<div class="header-links">
     <a href="{{ url_for('dashboard', view='week') }}">週表示</a>
     <a href="{{ url_for('dashboard', view='month') }}">月表示</a>
 </div>
 
-<div style="margin: 10px 0;">
+<!-- 下段：前週/次週 + ログアウト右端 -->
+<div class="header-links-bottom">
     {% if view_mode == 'week' %}
         <a href="{{ url_for('dashboard', view='week', week=prev_week) }}">前週</a>
         <a href="{{ url_for('dashboard', view='week', week=next_week) }}">次週</a>
@@ -121,88 +167,92 @@
         <a href="{{ url_for('dashboard', view='month', week=prev_week) }}">前月</a>
         <a href="{{ url_for('dashboard', view='month', week=next_week) }}">次月</a>
     {% endif %}
+    <a href="{{ url_for('logout') }}" class="logout">ログアウト</a>
 </div>
 
-<form method="post">
-<div class="scroll">
+<div class="table-container">
 <table>
-    <thead>
-        <tr>
-            <th></th>
-            {% for day in days %}
-                <th>
-                    {{ day.strftime("%m/%d") }}<br>
-                    {% set weekday = day.weekday() %}
-                    {% if weekday == 6 %}日{% elif weekday == 0 %}月{% elif weekday == 1 %}火{% elif weekday == 2 %}水{% elif weekday == 3 %}木{% elif weekday == 4 %}金{% else %}土{% endif %}
-                </th>
-            {% endfor %}
-        </tr>
-    </thead>
-    <tbody>
-    {% for group, users_in_group in groups.items() %}
-        <tr class="group-row">
-            <td colspan="{{ days|length + 1 }}">{{ group }}</td>
-        </tr>
-
-        {% for user in users_in_group %}
-            <tr class="user-row">
-                <td colspan="{{ days|length + 1 }}">{{ user.name }}</td>
-            </tr>
-
-            {% for task in tasks if task.user_id == user.userid %}
-            <tr>
-                <td>{{ task.name }}</td>
-                {% for day in days %}
-                <td class="{% if day == today %}today{% endif %}">
-                    {% set status = status_dict.get(task.taskkey, {}).get(day, 0) %}
-                    <button type="button" class="status-btn status-{{ status }}"
-                        data-task="{{ task.taskkey }}" data-day="{{ day.isoformat() }}"
-                        {% if day > today %}disabled{% endif %}>
-                        {% if status == 0 %}未{% elif status == 1 %}済{% else %}休{% endif %}
-                    </button>
-                    <input type="hidden" name="task_{{ task.taskkey }}_{{ day.isoformat() }}"
-                        id="hidden_{{ task.taskkey }}_{{ day.isoformat() }}" value="{{ status }}">
-                </td>
-                {% endfor %}
-            </tr>
-            {% endfor %}
-
-        {% endfor %}
+<thead>
+<tr>
+    <th>グループ / ユーザー / タスク</th>
+    {% for day in days %}
+    <th>
+        {{ day.strftime("%m/%d") }}<br>
+        {% set weekday = day.weekday() %}
+        {% if weekday == 0 %}月{% elif weekday == 1 %}火{% elif weekday == 2 %}水{% elif weekday == 3 %}木
+        {% elif weekday == 4 %}金{% elif weekday == 5 %}土{% else %}日{% endif %}
+    </th>
     {% endfor %}
-    </tbody>
-
+</tr>
+</thead>
+<tbody>
+{% for group, users_in_group in groups.items() %}
+<tr class="group-row">
+    <td>{{ group }}</td>
+    {% for day in days %}<td></td>{% endfor %}
+</tr>
+{% for user in users_in_group %}
+<tr class="user-row">
+    <td>{{ user.name }}</td>
+    {% for day in days %}<td></td>{% endfor %}
+</tr>
+{% for task in tasks if task.user_id == user.userid %}
+<tr>
+    <td class="task-name">{{ task.name }}</td>
+    {% for day in days %}
+    <td>
+        {% set status = status_dict.get(task.taskkey, {}).get(day, 0) %}
+        <button type="button" class="status-btn status-{{ status }}" data-task="{{ task.taskkey }}" data-day="{{ day.isoformat() }}" {% if day > today %}disabled{% endif %}>
+            {% if status == 0 %}未{% elif status == 1 %}済{% else %}休{% endif %}
+        </button>
+        <input type="hidden" name="task_{{ task.taskkey }}_{{ day.isoformat() }}" id="hidden_{{ task.taskkey }}_{{ day.isoformat() }}" value="{{ status }}">
+    </td>
+    {% endfor %}
+</tr>
+{% endfor %}
+{% endfor %}
+{% endfor %}
+</tbody>
 </table>
 </div>
 
-<br>
-<button type="submit">保存</button>
-</form>
-<br>
-<a href="{{ url_for('logout') }}">ログアウト</a>
-
 <script>
+// ステータスボタンクリック処理（既存のまま）
 document.querySelectorAll('.status-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        if(btn.disabled) return;
-
-        let current = 0;
-        if (btn.classList.contains('status-0')) current = 0;
-        else if (btn.classList.contains('status-1')) current = 1;
-        else if (btn.classList.contains('status-2')) current = 2;
-
+    btn.addEventListener('click', async () => {
+        if (btn.disabled) return;
+        let current = btn.classList.contains('status-0') ? 0 : btn.classList.contains('status-1') ? 1 : 2;
         let next = (current + 1) % 3;
-        btn.classList.remove('status-0', 'status-1', 'status-2');
-        btn.classList.add('status-' + next);
-
-        if (next == 0) btn.textContent = "未";
-        else if (next == 1) btn.textContent = "済";
-        else btn.textContent = "休";
-
+        btn.classList.remove('status-0','status-1','status-2');
+        btn.classList.add('status-'+next);
+        btn.textContent = next==0?'未':next==1?'済':'休';
         let hidden = document.getElementById(`hidden_${btn.dataset.task}_${btn.dataset.day}`);
-        if (hidden) hidden.value = next;
+        if(hidden) hidden.value = next;
+        try{
+            const res = await fetch("/update_status",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({taskkey:btn.dataset.task,day:btn.dataset.day,status:next})
+            });
+            const result = await res.json();
+            if(!result.success){
+                alert("保存エラー:"+ (result.error||""));
+                btn.classList.remove('status-0','status-1','status-2');
+                btn.classList.add('status-'+current);
+                btn.textContent = current==0?'未':current==1?'済':'休';
+                if(hidden) hidden.value = current;
+            }
+        }catch(err){
+            alert("通信エラー:"+err);
+            btn.classList.remove('status-0','status-1','status-2');
+            btn.classList.add('status-'+current);
+            btn.textContent = current==0?'未':current==1?'済':'休';
+            if(hidden) hidden.value = current;
+        }
     });
 });
 </script>
 
+</div>
 </body>
 </html>
