@@ -30,3 +30,12 @@ CREATE TABLE task_status (
     status INTEGER DEFAULT 0,
     PRIMARY KEY (user_id, task_id, date)
 );
+
+
+CREATE TABLE taskstatus (
+    user_id INTEGER REFERENCES "user"(userid),
+    task_id INTEGER REFERENCES task(taskkey),
+    date DATE,
+    status INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, task_id, date)
+);
