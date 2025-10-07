@@ -137,9 +137,14 @@ def dashboard():
 
     # --- 現在のステータス取得 ---
     status_dict = {}
-    taskkeys = [t.taskkey for t in tasks]
+
+    # taskkeys に None を含まないようにする
+    taskkeys = [t.taskkey for t in tasks if t.taskkey is not None]
+
     if taskkeys:
-        for ts in TaskStatus.query.filter(TaskStatus.task_id.in_(taskkeys)).all():
+        # TaskStatus を取得
+        task_statuses = TaskStatus.query.filter(TaskStatus.task_id.in_(taskkeys)).all()
+        for ts in task_statuses:
             if ts.task_id not in status_dict:
                 status_dict[ts.task_id] = {}
             status_dict[ts.task_id][ts.date] = ts.status
