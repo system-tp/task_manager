@@ -92,15 +92,18 @@ def dashboard():
     today = date.today()
     today_param = date.fromisoformat(week_start_str) if week_start_str else today
 
-    # ユーザー取得
+    # --- ユーザー取得 ---
     if current_user.role == "super_admin":
-        users = User.query.all()
+        users = User.query.order_by(User.userid.asc()).all()
     else:
-        users = User.query.filter_by(admin_id=current_user.id).all()
+        users = User.query.filter_by(admin_id=current_user.id).order_by(User.userid.asc()).all()
 
-    tasks = Task.query.filter(Task.user_id.in_([u.userid for u in users])).all()
+    # --- タスク取得 ---
+    tasks = Task.query.filter(Task.user_id.in_([u.userid for u in users])) \
+                      .order_by(Task.user_id.asc(), Task.taskkey.asc()) \
+                      .all()
 
-    # 日付リスト
+    # --- 日付リスト作成 ---
     if view_mode == "week":
         start_day = today_param - timedelta(days=(today_param.weekday() + 1) % 7)
         days = [start_day + timedelta(days=i) for i in range(7)]
@@ -117,14 +120,14 @@ def dashboard():
         prev_week = prev_month.isoformat()
         next_week = next_month.isoformat()
 
-    # 現在のステータス取得
+    # --- 現在のステータス取得 ---
     status_dict = {}
     for ts in TaskStatus.query.filter(TaskStatus.task_id.in_([t.taskkey for t in tasks])).all():
         if ts.task_id not in status_dict:
             status_dict[ts.task_id] = {}
         status_dict[ts.task_id][ts.date] = ts.status
 
-    # POST保存処理
+    # --- POST保存処理 ---
     if request.method == "POST":
         try:
             with db.session.no_autoflush:
@@ -160,20 +163,28 @@ def dashboard():
             print("DB保存エラー:", e)
         return redirect(url_for("dashboard", view=view_mode, week=week_start_str or today.isoformat()))
 
-    # グループ分け
+    # --- グループ分け ---
     groups = {}
     for user in users:
         if user.group not in groups:
             groups[user.group] = []
         groups[user.group].append(user)
 
+    # --- ユーザーごとのタスクを辞書化 ---
+    tasks_by_user = {}
+    for task in tasks:
+        if task.user_id not in tasks_by_user:
+            tasks_by_user[task.user_id] = []
+        tasks_by_user[task.user_id].append(task)
+
     return render_template(
         "dashboard.html",
-        groups=groups,
-        users=users,
-        tasks=tasks,
-        status_dict=status_dict,
-        days=days,
+        groups=groups,                 # グループ名 → ユーザーリスト
+        users=users,                   # 全ユーザー（必要なら）
+        tasks=tasks,                   # 全タスク（必要なら）
+        tasks_by_user=tasks_by_user,   # ユーザーID → タスクリスト
+        status_dict=status_dict,       # taskkey → {日付:ステータス}
+        days=days,                     # 表示日付リスト
         view_mode=view_mode,
         prev_week=prev_week,
         next_week=next_week,
@@ -189,13 +200,6 @@ if __name__ == "__main__":
     with app.app_context():
         try:
             db.create_all()
-            # --- 初回 Admin 自動作成 ---
-            if not Admin.query.get("admin"):
-                admin = Admin(account_id="admin", name="Administrator", account_password="admin", role="super_admin")
-                db.session.add(admin)
-                db.session.commit()
-                print("✅ 初回 admin アカウント作成完了 (ID: admin / パスワード: admin)")
-            print("✅ Tables created successfully!")
         except Exception as e:
             print("❌ DB 作成エラー:", e)
     app.run(host="0.0.0.0", port=5000)

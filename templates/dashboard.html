@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>タスクカレンダー</title>
+    <title>総務部　姿勢ルールチェック</title>
     <style>
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -106,7 +106,7 @@
 </head>
 <body>
 
-<h2>タスクカレンダー</h2>
+<h2>総務部　姿勢ルールチェック</h2>
 
 <div>
     <a href="{{ url_for('dashboard', view='week') }}">週表示</a>
@@ -128,7 +128,7 @@
 <table>
     <thead>
         <tr>
-            <th>タスク</th>
+            <th></th>
             {% for day in days %}
                 <th>
                     {{ day.strftime("%m/%d") }}<br>
@@ -139,36 +139,38 @@
         </tr>
     </thead>
     <tbody>
-        {% for group, users_in_group in groups.items() %}
-            <tr class="group-row">
-                <td colspan="{{ days|length + 1 }}">{{ group }}</td>
+    {% for group, users_in_group in groups.items() %}
+        <tr class="group-row">
+            <td colspan="{{ days|length + 1 }}">{{ group }}</td>
+        </tr>
+
+        {% for user in users_in_group %}
+            <tr class="user-row">
+                <td colspan="{{ days|length + 1 }}">{{ user.name }}</td>
             </tr>
 
-            {% for user in users_in_group %}
-                <tr class="user-row">
-                    <td colspan="{{ days|length + 1 }}">{{ user.name }}</td>
-                </tr>
-
-                {% for task in tasks if task.user_id == user.id %}
-                <tr>
-                    <td>{{ task.name }}</td>
-                    {% for day in days %}
-                    <td class="{% if day == today %}today{% endif %}">
-                        {% set status = status_dict.get(task.taskkey, {}).get(day, 0) %}
-                        <button type="button" class="status-btn status-{{ status }}" 
-                            data-task="{{ task.taskkey }}" data-day="{{ day.isoformat() }}"
-                            {% if day > today %}disabled{% endif %}>
-                            {% if status == 0 %}未{% elif status == 1 %}済{% else %}休{% endif %}
-                        </button>
-                        <input type="hidden" name="task_{{ task.taskkey }}_{{ day.isoformat() }}" 
-                               id="hidden_{{ task.taskkey }}_{{ day.isoformat() }}" value="{{ status }}">
-                    </td>
-                    {% endfor %}
-                </tr>
+            {% for task in tasks if task.user_id == user.userid %}
+            <tr>
+                <td>{{ task.name }}</td>
+                {% for day in days %}
+                <td class="{% if day == today %}today{% endif %}">
+                    {% set status = status_dict.get(task.taskkey, {}).get(day, 0) %}
+                    <button type="button" class="status-btn status-{{ status }}"
+                        data-task="{{ task.taskkey }}" data-day="{{ day.isoformat() }}"
+                        {% if day > today %}disabled{% endif %}>
+                        {% if status == 0 %}未{% elif status == 1 %}済{% else %}休{% endif %}
+                    </button>
+                    <input type="hidden" name="task_{{ task.taskkey }}_{{ day.isoformat() }}"
+                        id="hidden_{{ task.taskkey }}_{{ day.isoformat() }}" value="{{ status }}">
+                </td>
                 {% endfor %}
+            </tr>
             {% endfor %}
+
         {% endfor %}
+    {% endfor %}
     </tbody>
+
 </table>
 </div>
 
