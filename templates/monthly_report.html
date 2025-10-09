@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月間レポート</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #f5f6fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 1rem;
+    height: 100%;
+}
+
+.container {
+    width: 60%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.title-box {
+    background: linear-gradient(90deg, #6c5ce7, #00cec9);
+    color: #fff;
+    text-align: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    padding: 12px 0;
+    border-radius: 12px 12px 0 0;
+}
+
+.top-actions {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+}
+.back-link, .logout-link { text-decoration: none; color: #3498db; }
+
+.report-switch {
+    text-align: center;
+    margin: 10px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px; /* ボタン間の間隔 */
+}
+.switch-btn {
+    background-color: #6c5ce7;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.report-switch .month-label {
+    font-weight: bold;
+    margin-left: 10px; /* ラベルとボタンの距離 */
+}
+
+.table-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    border-radius: 0 0 12px 12px;
+}
+
+table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    white-space: nowrap;
+}
+th, td { 
+    border: 1px solid #ddd; 
+    padding: 4px 6px; 
+    text-align: center; 
+    vertical-align: middle;
+}
+th {
+    background: linear-gradient(to bottom, #6c5ce7, #a29bfe);
+    color: #fff;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.group-row td:first-child { font-weight: bold; text-align: left; background-color: #dcdde1; padding-left: 10px; }
+.user-row td:first-child { font-weight: bold; text-align: left; background-color: #f1f2f6; padding-left: 20px; }
+.task-row td:first-child { text-align: left; padding-left: 40px; }
+
+.rate-high { color: #27ae60; }
+.rate-mid { color: #f1c40f; }
+.rate-low { color: #e74c3c; }
+
+.col-fixed { width: 60px; }
+.group-row td.day-col, .user-row td.day-col { color: #999; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title-box">{{ year }}年{{ month }}月 月間レポート</div>
+
+    <div class="top-actions">
+        <a href="/dashboard" class="back-link">戻る</a>
+        <a href="/logout" class="logout-link">ログアウト</a>
+    </div>
+
+    <div class="report-switch" style="display:flex; justify-content:space-between; align-items:center;">
+        <!-- 左端：切替ボタン -->
+        <button id="toggle-report" class="switch-btn">社員集計 ⇄ 部課集計</button>
+
+        <!-- 右端：前月／翌月 -->
+        <span>
+            <a href="{{ url_for('monthly_report', year=prev_year, month=prev_month) }}" class="switch-btn">前月</a>
+            <a href="{{ url_for('monthly_report', year=next_year, month=next_month) }}" class="switch-btn">翌月</a>
+        </span>
+    </div>
+
+    <div class="table-container">
+        <!-- ユーザー集計 -->
+        <div id="user-report">
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th class="col-fixed">達成率</th>
+                        <th class="col-fixed">完了</th>
+                        <th class="col-fixed">休み</th>
+                        <th class="col-fixed">日数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for group, users_in_group in groups.items() %}
+                    {% set g_sum = group_summary.get(group) %}
+                    {% set g_rate = (g_sum.completed / (g_sum.total_days - g_sum.rest) * 100) if (g_sum.total_days - g_sum.rest)>0 else 0 %}
+                    {% if g_rate >= 80 %}{% set g_class="rate-high" %}{% elif g_rate >=50 %}{% set g_class="rate-mid" %}{% else %}{% set g_class="rate-low" %}{% endif %}
+                    <tr class="group-row">
+                        <td>{{ group }}</td>
+                        <td class="{{ g_class }}">{{ "%.1f"|format(g_rate) }}%</td>
+                        <td>--</td>
+                        <td>--</td>
+                        <td>--</td>
+                    </tr>
+                    {% for user in users_in_group %}
+                        {% set u_sum = user_summary.get(user.userid) %}
+                        {% set u_rate = (u_sum.completed / (u_sum.total_days - u_sum.rest) * 100) if (u_sum.total_days - u_sum.rest)>0 else 0 %}
+                        {% if u_rate >= 80 %}{% set u_class="rate-high" %}{% elif u_rate >=50 %}{% set u_class="rate-mid" %}{% else %}{% set u_class="rate-low" %}{% endif %}
+                        <tr class="user-row">
+                            <td>{{ user.name }}</td>
+                            <td class="{{ u_class }}">{{ "%.1f"|format(u_rate) }}%</td>
+                            <td>{{ u_sum.completed }}</td>
+                            <td>{{ u_sum.rest }}</td>
+                            <td>--</td>
+                        </tr>
+                        {% for tkey, tinfo in report.get(user.userid, {}).items() %}
+                            {% set t_rate = tinfo.rate %}
+                            {% if t_rate >=80 %}{% set t_class="rate-high" %}{% elif t_rate >=50 %}{% set t_class="rate-mid" %}{% else %}{% set t_class="rate-low" %}{% endif %}
+                            <tr class="task-row">
+                                <td>{{ tinfo.task_name }}</td>
+                                <td class="{{ t_class }}">{{ "%.1f"|format(t_rate) }}%</td>
+                                <td>{{ tinfo.completed }}</td>
+                                <td>{{ tinfo.rest }}</td>
+                                <td class="day-col">{{ tinfo.total_days }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- タスク集計 -->
+        <div id="task-report" style="display:none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>グループ</th>
+                        <th>タスク名</th>
+                        <th class="col-fixed">達成率</th>
+                        <th class="col-fixed">完了</th>
+                        <th class="col-fixed">休み</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for group, tasks_in_group in task_report.items() %}
+                    {% for t_name, t_info in tasks_in_group.items() %}
+                        {% if t_info.rate >= 80 %}{% set rate_class="rate-high" %}{% elif t_info.rate >=50 %}{% set rate_class="rate-mid" %}{% else %}{% set rate_class="rate-low" %}{% endif %}
+                        <tr>
+                            {% if loop.first %}<td rowspan="{{ tasks_in_group|length }}">{{ group }}</td>{% endif %}
+                            <td>{{ t_name }}</td>
+                            <td class="{{ rate_class }}">{{ "%.1f"|format(t_info.rate) }}%</td>
+                            <td>{{ t_info.completed }}</td>
+                            <td>{{ t_info.rest }}</td>
+                        </tr>
+                    {% endfor %}
+                    {% set gsum = task_group_summary.get(group) %}
+                    <tr style="font-weight:bold; background-color:#dcdde1;">
+                        <td colspan="2">{{ group }} 合計</td>
+                        <td>{{ "%.1f"|format(gsum.rate) }}%</td>
+                        <td>{{ gsum.completed }}</td>
+                        <td>{{ gsum.rest }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div> <!-- table-container -->
+</div> <!-- container -->
+
+<script>
+const toggleBtn = document.getElementById("toggle-report");
+toggleBtn.addEventListener("click", function(){
+    const userDiv = document.getElementById("user-report");
+    const taskDiv = document.getElementById("task-report");
+    if(userDiv.style.display==="none"){
+        userDiv.style.display="block";
+        taskDiv.style.display="none";
+    } else {
+        userDiv.style.display="none";
+        taskDiv.style.display="block";
+    }
+});
+
+// 前月・翌月ボタン
+const year = {{ year }};
+const month = {{ month }};
+
+function getPrevMonth(y, m) { return m===1 ? [y-1,12] : [y,m-1]; }
+function getNextMonth(y, m) { return m===12 ? [y+1,1] : [y,m+1]; }
+
+document.getElementById("prev-month").addEventListener("click", ()=>{
+    const [y,m] = getPrevMonth(year, month);
+    window.location.href = `/monthly_report?year=${y}&month=${m}`;
+});
+document.getElementById("next-month").addEventListener("click", ()=>{
+    const [y,m] = getNextMonth(year, month);
+    window.location.href = `/monthly_report?year=${y}&month=${m}`;
+});
+</script>
+
+</body>
+</html>
