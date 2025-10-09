@@ -42,9 +42,9 @@ html, body {
     text-align: center;
     margin: 10px 0;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 8px; /* ボタン間の間隔 */
+    gap: 8px;
 }
 .switch-btn {
     background-color: #6c5ce7;
@@ -56,13 +56,11 @@ html, body {
     cursor: pointer;
     text-decoration: none;
 }
-.report-switch .month-label {
-    font-weight: bold;
-    margin-left: 10px; /* ラベルとボタンの距離 */
-}
+.report-switch .month-label { font-weight: bold; margin-left: 10px; }
 
 .table-container {
     flex-grow: 1;
+    overflow-x: auto; /* 横スクロール対応 */
     overflow-y: auto;
     border-radius: 0 0 12px 12px;
 }
@@ -91,13 +89,8 @@ th {
 .user-row td:first-child { font-weight: bold; text-align: left; padding-left: 20px; }
 .task-row td:first-child { text-align: left; padding-left: 40px; }
 
-/* 達成率～日数列だけ背景色を付ける */
-.group-row td:nth-child(n):nth-child(-n+5) {
-    background-color: #dcdde1;
-}
-.user-row td:nth-child(n):nth-child(-n+5) {
-    background-color: #f1f2f6;
-}
+.group-row td:nth-child(n):nth-child(-n+5) { background-color: #dcdde1; }
+.user-row td:nth-child(n):nth-child(-n+5) { background-color: #f1f2f6; }
 
 .rate-high { color: #27ae60; }
 .rate-mid { color: #f1c40f; }
@@ -105,6 +98,24 @@ th {
 
 .col-fixed { width: 60px; }
 .group-row td.day-col, .user-row td.day-col { color: #999; }
+
+/* --- レスポンシブ --- */
+@media (max-width: 768px) {
+    .container { width: 95%; }
+    .title-box { font-size: 1.4rem; padding: 8px 0; }
+    .top-actions { flex-direction: column; align-items: flex-start; gap: 5px; font-size: 0.9rem; }
+    .report-switch { flex-direction: column; gap: 5px; font-size: 0.9rem; }
+    .switch-btn { font-size: 0.85rem; padding: 5px 10px; }
+    table th, table td { padding: 3px 4px; font-size: 0.75rem; }
+    td.task-row td:first-child { padding-left: 30px; }
+}
+
+@media (max-width: 480px) {
+    .title-box { font-size: 1.2rem; padding: 6px 0; }
+    table th, table td { padding: 2px 3px; font-size: 0.7rem; }
+    td.task-row td:first-child { padding-left: 20px; }
+    .switch-btn { font-size: 0.7rem; padding: 4px 8px; }
+}
 </style>
 </head>
 <body>
@@ -117,11 +128,8 @@ th {
         <a href="/logout" class="logout-link">ログアウト</a>
     </div>
 
-    <div class="report-switch" style="display:flex; justify-content:space-between; align-items:center;">
-        <!-- 左端：切替ボタン -->
+    <div class="report-switch">
         <button id="toggle-report" class="switch-btn">社員集計 ⇄ 部課集計</button>
-
-        <!-- 右端：前月／翌月 -->
         <span>
             <a href="{{ url_for('monthly_report', year=prev_year, month=prev_month) }}" class="switch-btn">前月</a>
             <a href="{{ url_for('monthly_report', year=next_year, month=next_month) }}" class="switch-btn">翌月</a>
@@ -129,7 +137,6 @@ th {
     </div>
 
     <div class="table-container">
-        <!-- ユーザー集計 -->
         <div id="user-report">
             <table>
                 <thead>
@@ -181,7 +188,6 @@ th {
             </table>
         </div>
 
-        <!-- タスク集計 -->
         <div id="task-report" style="display:none;">
             <table>
                 <thead>
@@ -216,8 +222,8 @@ th {
                 </tbody>
             </table>
         </div>
-    </div> <!-- table-container -->
-</div> <!-- container -->
+    </div>
+</div>
 
 <script>
 const toggleBtn = document.getElementById("toggle-report");
@@ -231,22 +237,6 @@ toggleBtn.addEventListener("click", function(){
         userDiv.style.display="none";
         taskDiv.style.display="block";
     }
-});
-
-// 前月・翌月ボタン
-const year = {{ year }};
-const month = {{ month }};
-
-function getPrevMonth(y, m) { return m===1 ? [y-1,12] : [y,m-1]; }
-function getNextMonth(y, m) { return m===12 ? [y+1,1] : [y,m+1]; }
-
-document.getElementById("prev-month").addEventListener("click", ()=>{
-    const [y,m] = getPrevMonth(year, month);
-    window.location.href = `/monthly_report?year=${y}&month=${m}`;
-});
-document.getElementById("next-month").addEventListener("click", ()=>{
-    const [y,m] = getNextMonth(year, month);
-    window.location.href = `/monthly_report?year=${y}&month=${m}`;
 });
 </script>
 

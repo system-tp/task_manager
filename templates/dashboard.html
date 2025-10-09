@@ -137,6 +137,31 @@ td.task-name {
 .status-btn:disabled { background-color: #ccc; color: #666; cursor: not-allowed; }
 
 .today-col { background-color: #fff9c4; }
+
+/* --- レスポンシブ対応 --- */
+@media (max-width: 768px) {
+    .table-wrapper { width: 100% !important; padding: 0 5px; }
+    h2 { font-size: 1.4rem; padding: 8px 10px; }
+    .header-links, .header-links-bottom {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        font-size: 0.9rem;
+    }
+    .header-links a, .header-links-bottom a { font-size: 0.85rem; margin-right: 5px; }
+    table th, table td { padding: 3px 4px; font-size: 0.75rem; }
+    td.task-name { padding-left: 20px; }
+    .status-btn { width: 24px; height: 20px; font-size: 0.7rem; }
+    .table-container { overflow-x: auto; }
+}
+
+@media (max-width: 480px) {
+    h2 { font-size: 1.2rem; padding: 6px 8px; }
+    table th, table td { padding: 2px 3px; font-size: 0.7rem; }
+    td.task-name { padding-left: 15px; }
+    .status-btn { width: 20px; height: 18px; font-size: 0.6rem; }
+    .header-links, .header-links-bottom { font-size: 0.75rem; }
+}
 </style>
 </head>
 <body class="{{ view_mode }}-view">

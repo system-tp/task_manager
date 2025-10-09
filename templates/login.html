@@ -8,7 +8,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f5f6fa;
             margin: 0;
-            padding: 20px; /* 上部に余白 */
+            padding: 20px;
         }
         .login-container {
             background-color: #fff;
@@ -17,12 +17,13 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             width: 100%;
             max-width: 360px;
-            margin: 40px auto 0 auto; /* 上に余白を入れて中央寄せ */
+            margin: 40px auto 0 auto;
         }
         h2 {
             text-align: center;
             color: #2f3640;
             margin-bottom: 20px;
+            font-size: 1.5rem;
         }
         input[type=text], input[type=password] {
             width: 100%;
@@ -47,6 +48,25 @@
         }
         button[type=submit]:hover {
             background-color: #a29bfe;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 20px;
+                margin: 20px auto 0 auto;
+            }
+            h2 {
+                font-size: 1.2rem;
+            }
+            input[type=text], input[type=password] {
+                font-size: 0.9rem;
+                padding: 8px 10px;
+            }
+            button[type=submit] {
+                font-size: 0.9rem;
+                padding: 10px;
+            }
         }
     </style>
 </head>
