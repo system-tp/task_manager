@@ -11,7 +11,6 @@ html, body {
     background-color: #f5f6fa;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-
 .table-wrapper {
     display: flex;
     flex-direction: column;
@@ -20,7 +19,6 @@ html, body {
     border-radius: 12px;
     overflow: hidden;
 }
-
 body.day-view .table-wrapper { width: 50%; }
 body.week-view .table-wrapper,
 body.month-view .table-wrapper { width: 95%; }
@@ -36,19 +34,9 @@ h2 {
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
-
-.header-links {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 5px;
-}
+.header-links { display: flex; gap: 10px; margin-bottom: 5px; }
 .header-links a { text-decoration: none; color: #3498db; }
-
-.header-links-bottom {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 5px;
-}
+.header-links-bottom { display: flex; gap: 10px; margin-bottom: 5px; }
 .header-links-bottom a { text-decoration: none; color: #3498db; }
 .header-links-bottom a.logout { margin-left: auto; }
 
@@ -58,38 +46,33 @@ h2 {
     background-color: #fff;
     border-radius: 12px;
 }
-
-table { 
-    border-collapse: collapse; 
-    width: 100%; 
-    white-space: nowrap; 
+table {
+    border-collapse: collapse;
+    width: 100%;
+    white-space: nowrap;
 }
-
-th, td { 
-    border: 1px solid #ddd; 
-    text-align: center; 
+th, td {
+    border: 1px solid #ddd;
+    text-align: center;
     vertical-align: middle;
     padding: 4px 6px;
 }
-
-th { 
+th {
     background: linear-gradient(to bottom, #6c5ce7, #a29bfe);
     color: #fff;
     font-weight: bold;
-    position: sticky; 
-    top: 0; 
-    z-index: 3; 
-    line-height: 1.2; 
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    line-height: 1.2;
 }
-
 th:first-child, td:first-child {
     position: sticky;
     left: 0;
     background-color: #fff;
     z-index: 2;
-    background-clip: padding-box; 
+    background-clip: padding-box;
 }
-
 thead th:first-child { z-index: 4; }
 
 .group-row td {
@@ -98,22 +81,20 @@ thead th:first-child { z-index: 4; }
     text-align: left;
     padding-left: 10px;
     font-size: 1rem;
-    height: auto; 
+    height: auto;
 }
-
-.user-row td { 
-    background-color: #f1f2f6; 
-    text-align: left; 
-    font-weight: bold; 
+.user-row td {
+    background-color: #f1f2f6;
+    text-align: left;
+    font-weight: bold;
     padding-left: 20px;
     font-size: 0.95rem;
-    height: auto; 
+    height: auto;
 }
-
 td.task-name {
     text-align: left;
     padding-left: 40px;
-    height: auto; 
+    height: auto;
 }
 
 .status-btn {
@@ -130,13 +111,34 @@ td.task-name {
     align-items: center;
     margin: 0 auto;
 }
-
-.status-0 { background-color: #e74c3c; }
-.status-1 { background-color: #2980b9; }
-.status-2 { background-color: #f1c40f; color: #000; }
-.status-btn:disabled { background-color: #ccc; color: #666; cursor: not-allowed; }
-
+.status-0 { background-color: #e74c3c; } /* 未 */
+.status-1 { background-color: #2980b9; } /* 済 */
+.status-2 { background-color: #f1c40f; color: #000; } /* 休 */
+.status-3 { background-color: #7f8c8d; } /* 無 */
+.status-btn:disabled {
+    background-color: #ccc;
+    color: #666;
+    cursor: not-allowed;
+}
 .today-col { background-color: #fff9c4; }
+
+.group-filter {
+    display: block;               
+    width: auto;                  
+    max-width: 200px;             
+    margin: 0;                    
+    padding: 4px 6px;             
+    border: none;                 
+    border-radius: 0;             
+    font-size: 1rem;              
+    font-family: inherit;         
+    background-color: transparent;
+    text-align: left;             
+    color: #000;                  /* 文字色を黒に */
+    -webkit-appearance: none;     
+    -moz-appearance: none;        
+    appearance: none;             
+}
 
 /* --- レスポンシブ対応 --- */
 @media (max-width: 768px) {
@@ -148,13 +150,15 @@ td.task-name {
         gap: 5px;
         font-size: 0.9rem;
     }
-    .header-links a, .header-links-bottom a { font-size: 0.85rem; margin-right: 5px; }
+    .header-links a, .header-links-bottom a {
+        font-size: 0.85rem;
+        margin-right: 5px;
+    }
     table th, table td { padding: 3px 4px; font-size: 0.75rem; }
     td.task-name { padding-left: 20px; }
     .status-btn { width: 24px; height: 20px; font-size: 0.7rem; }
     .table-container { overflow-x: auto; }
 }
-
 @media (max-width: 480px) {
     h2 { font-size: 1.2rem; padding: 6px 8px; }
     table th, table td { padding: 2px 3px; font-size: 0.7rem; }
@@ -167,7 +171,6 @@ td.task-name {
 <body class="{{ view_mode }}-view">
 
 <div class="table-wrapper">
-
 <h2 align="center">総務部　姿勢ルールチェック</h2>
 
 <!-- 上段：日・週・月切替 -->
@@ -201,7 +204,15 @@ td.task-name {
 <table>
 <thead>
 <tr>
-    <th></th>
+    <!-- ✅ ここにグループ絞り込み -->
+    <th>
+        <select id="groupFilter" class="group-filter">
+            <option value="all">すべて表示</option>
+            {% for group in groups.keys() %}
+            <option value="{{ group }}">{{ group }}</option>
+            {% endfor %}
+        </select>
+    </th>
     {% for day in days %}
     <th class="{% if day == today %}today-col{% endif %}">
         {{ day.strftime("%m/%d") }}<br>
@@ -212,22 +223,23 @@ td.task-name {
     {% endfor %}
 </tr>
 </thead>
+
 <tbody>
 {% if groups %}
     {% for group, users_in_group in groups.items() %}
-    <tr class="group-row">
+    <tr class="group-row" data-group="{{ group }}">
         <td>{{ group }}</td>
         {% for day in days %}<td class="{% if day == today %}today-col{% endif %}"></td>{% endfor %}
     </tr>
     {% for user in users_in_group %}
-    <tr class="user-row">
+    <tr class="user-row" data-group="{{ group }}">
         <td>{{ user.name }}</td>
         {% for day in days %}<td class="{% if day == today %}today-col{% endif %}"></td>{% endfor %}
     </tr>
     {% set user_tasks = tasks_by_user.get(user.userid, []) %}
     {% if user_tasks %}
         {% for task in user_tasks %}
-        <tr>
+        <tr class="task-row" data-group="{{ group }}">
             <td class="task-name">{{ task.name }}</td>
             {% for day in days %}
             {% set status = status_dict.get(task.taskkey, {}).get(day, 0) %}
@@ -236,34 +248,26 @@ td.task-name {
                         data-task="{{ task.taskkey }}"
                         data-day="{{ day.isoformat() }}"
                         {% if day > today or day < system_start_date %}disabled{% endif %}>
-                    {% if status == 0 %}未{% elif status == 1 %}済{% else %}休{% endif %}
+                    {% if status == 0 %}未{% elif status == 1 %}済{% elif status == 2 %}休{% elif status == 3 %}無{% endif %}
                 </button>
-                <input type="hidden" name="task_{{ task.taskkey }}_{{ day.isoformat() }}" id="hidden_{{ task.taskkey }}_{{ day.isoformat() }}" value="{{ status }}">
+                <input type="hidden"
+                       name="task_{{ task.taskkey }}_{{ day.isoformat() }}"
+                       id="hidden_{{ task.taskkey }}_{{ day.isoformat() }}"
+                       value="{{ status }}">
             </td>
             {% endfor %}
         </tr>
         {% endfor %}
-    {% else %}
-        <tr>
-            <td class="task-name">未登録タスク</td>
-            {% for day in days %}
-            <td class="{% if day == today %}today-col{% endif %}">
-                <button type="button" class="status-btn status-0" disabled>未</button>
-                <input type="hidden" name="task_dummy_{{ day.isoformat() }}" value="0">
-            </td>
-            {% endfor %}
-        </tr>
     {% endif %}
     {% endfor %}
     {% endfor %}
 {% else %}
-<tr>
-    <td>未登録グループ/ユーザー</td>
-    {% for day in days %}
-    <td class="{% if day == today %}today-col{% endif %}">
-        <button type="button" class="status-btn status-0" disabled>未</button>
-    </td>
-    {% endfor %}
+<tr><td>未登録グループ/ユーザー</td>
+{% for day in days %}
+<td class="{% if day == today %}today-col{% endif %}">
+    <button type="button" class="status-btn status-0" disabled>未</button>
+</td>
+{% endfor %}
 </tr>
 {% endif %}
 </tbody>
@@ -272,35 +276,91 @@ td.task-name {
 
 <script>
 document.querySelectorAll('.status-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', (e) => {
         if (btn.disabled) return;
-        let current = btn.classList.contains('status-0') ? 0 : btn.classList.contains('status-1') ? 1 : 2;
-        let next = (current + 1) % 3;
-        btn.classList.remove('status-0','status-1','status-2');
-        btn.classList.add('status-'+next);
-        btn.textContent = next==0?'未':next==1?'済':'休';
-        let hidden = document.getElementById(`hidden_${btn.dataset.task}_${btn.dataset.day}`);
-        if(hidden) hidden.value = next;
-        try{
-            const res = await fetch("/update_status",{
-                method:"POST",
-                headers:{"Content-Type":"application/json"},
-                body:JSON.stringify({taskkey:btn.dataset.task,day:btn.dataset.day,status:next})
+        e.stopPropagation();
+        document.querySelectorAll('.status-menu').forEach(m => m.remove());
+        const menu = document.createElement('div');
+        menu.className = 'status-menu';
+        menu.style.position = 'absolute';
+        menu.style.background = '#fff';
+        menu.style.border = '1px solid #ccc';
+        menu.style.borderRadius = '6px';
+        menu.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+        menu.style.zIndex = 1000;
+
+        const options = [
+            {label:'未', value:0, color:'#e74c3c'},
+            {label:'済', value:1, color:'#2980b9'},
+            {label:'休', value:2, color:'#f1c40f', textColor:'#000'},
+            {label:'無', value:3, color:'#7f8c8d'}
+        ];
+
+        options.forEach(opt => {
+            const item = document.createElement('div');
+            item.textContent = opt.label;
+            item.style.padding = '4px 8px';
+            item.style.cursor = 'pointer';
+            item.style.color = opt.textColor || '#fff';
+            item.style.background = opt.color;
+            item.style.borderRadius = '4px';
+            item.style.margin = '3px';
+            item.style.textAlign = 'center';
+            item.addEventListener('click', async () => {
+                await updateStatus(btn, opt.value);
+                menu.remove();
             });
-            const result = await res.json();
-            if(!result.success){
-                alert("保存エラー:"+ (result.error||""));
-                btn.classList.remove('status-0','status-1','status-2');
-                btn.classList.add('status-'+current);
-                btn.textContent = current==0?'未':current==1?'済':'休';
-                if(hidden) hidden.value = current;
-            }
-        }catch(err){
-            alert("通信エラー:"+err);
-            btn.classList.remove('status-0','status-1','status-2');
-            btn.classList.add('status-'+current);
-            btn.textContent = current==0?'未':current==1?'済':'休';
-            if(hidden) hidden.value = current;
+            menu.appendChild(item);
+        });
+
+        document.body.appendChild(menu);
+        const rect = btn.getBoundingClientRect();
+        menu.style.left = `${rect.left + window.scrollX}px`;
+        menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    });
+});
+document.addEventListener('click', () => {
+    document.querySelectorAll('.status-menu').forEach(m => m.remove());
+});
+
+// --- ステータス更新処理共通関数 ---
+async function updateStatus(btn, next) {
+    const labels = ['未','済','休','無'];
+    btn.classList.remove('status-0','status-1','status-2','status-3');
+    btn.classList.add('status-'+next);
+    btn.textContent = labels[next];
+    let hidden = document.getElementById(`hidden_${btn.dataset.task}_${btn.dataset.day}`);
+    if(hidden) hidden.value = next;
+
+    try {
+        const res = await fetch("/update_status", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                taskkey:btn.dataset.task,
+                day:btn.dataset.day,
+                status:next
+            })
+        });
+        const result = await res.json();
+        if(!result.success){
+            alert("保存エラー:" + (result.error || ""));
+        }
+    } catch(err) {
+        alert("通信エラー:"+err);
+    }
+}
+
+// ✅ グループ絞り込み機能
+document.getElementById('groupFilter').addEventListener('change', function() {
+    const selected = this.value;
+    document.querySelectorAll('tbody tr').forEach(tr => {
+        const group = tr.getAttribute('data-group');
+        if (!group) return;
+        if (selected === 'all' || group === selected) {
+            tr.style.display = '';
+        } else {
+            tr.style.display = 'none';
         }
     });
 });

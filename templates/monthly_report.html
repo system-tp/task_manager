@@ -60,7 +60,7 @@ html, body {
 
 .table-container {
     flex-grow: 1;
-    overflow-x: auto; /* 横スクロール対応 */
+    overflow-x: auto;
     overflow-y: auto;
     border-radius: 0 0 12px 12px;
 }
@@ -89,8 +89,8 @@ th {
 .user-row td:first-child { font-weight: bold; text-align: left; padding-left: 20px; }
 .task-row td:first-child { text-align: left; padding-left: 40px; }
 
-.group-row td:nth-child(n):nth-child(-n+5) { background-color: #dcdde1; }
-.user-row td:nth-child(n):nth-child(-n+5) { background-color: #f1f2f6; }
+.group-row td:nth-child(n):nth-child(-n+6) { background-color: #dcdde1; }
+.user-row td:nth-child(n):nth-child(-n+6) { background-color: #f1f2f6; }
 
 .rate-high { color: #27ae60; }
 .rate-mid { color: #f1c40f; }
@@ -107,13 +107,11 @@ th {
     .report-switch { flex-direction: column; gap: 5px; font-size: 0.9rem; }
     .switch-btn { font-size: 0.85rem; padding: 5px 10px; }
     table th, table td { padding: 3px 4px; font-size: 0.75rem; }
-    td.task-row td:first-child { padding-left: 30px; }
 }
 
 @media (max-width: 480px) {
     .title-box { font-size: 1.2rem; padding: 6px 0; }
     table th, table td { padding: 2px 3px; font-size: 0.7rem; }
-    td.task-row td:first-child { padding-left: 20px; }
     .switch-btn { font-size: 0.7rem; padding: 4px 8px; }
 }
 </style>
@@ -137,6 +135,7 @@ th {
     </div>
 
     <div class="table-container">
+        <!-- ▼ 社員別集計 ▼ -->
         <div id="user-report">
             <table>
                 <thead>
@@ -145,41 +144,53 @@ th {
                         <th class="col-fixed">達成率</th>
                         <th class="col-fixed">完了</th>
                         <th class="col-fixed">休み</th>
+                        <th class="col-fixed">無</th>
                         <th class="col-fixed">日数</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for group, users_in_group in groups.items() %}
                     {% set g_sum = group_summary.get(group) %}
-                    {% set g_rate = (g_sum.completed / (g_sum.total_days - g_sum.rest) * 100) if (g_sum.total_days - g_sum.rest)>0 else 0 %}
-                    {% if g_rate >= 80 %}{% set g_class="rate-high" %}{% elif g_rate >=50 %}{% set g_class="rate-mid" %}{% else %}{% set g_class="rate-low" %}{% endif %}
+                    {% set g_rate = (g_sum.completed / (g_sum.total_days - g_sum.rest - g_sum.none_count) * 100)
+                        if (g_sum.total_days - g_sum.rest - g_sum.none_count)>0 else 0 %}
+                    {% if g_rate >= 80 %}{% set g_class="rate-high" %}
+                    {% elif g_rate >=50 %}{% set g_class="rate-mid" %}
+                    {% else %}{% set g_class="rate-low" %}{% endif %}
                     <tr class="group-row">
                         <td>{{ group }}</td>
                         <td class="{{ g_class }}">{{ "%.1f"|format(g_rate) }}%</td>
-                        <td>--</td>
-                        <td>--</td>
-                        <td>--</td>
+                        <td>{{ g_sum.completed }}</td>
+                        <td>{{ g_sum.rest }}</td>
+                        <td>{{ g_sum.none_count }}</td>
+                        <td>{{ g_sum.total_days }}</td>
                     </tr>
                     {% for user in users_in_group %}
                         {% set u_sum = user_summary.get(user.userid) %}
-                        {% set u_rate = (u_sum.completed / (u_sum.total_days - u_sum.rest) * 100) if (u_sum.total_days - u_sum.rest)>0 else 0 %}
-                        {% if u_rate >= 80 %}{% set u_class="rate-high" %}{% elif u_rate >=50 %}{% set u_class="rate-mid" %}{% else %}{% set u_class="rate-low" %}{% endif %}
+                        {% set u_rate = (u_sum.completed / (u_sum.total_days - u_sum.rest - u_sum.none_count) * 100)
+                            if (u_sum.total_days - u_sum.rest - u_sum.none_count)>0 else 0 %}
+                        {% if u_rate >= 80 %}{% set u_class="rate-high" %}
+                        {% elif u_rate >=50 %}{% set u_class="rate-mid" %}
+                        {% else %}{% set u_class="rate-low" %}{% endif %}
                         <tr class="user-row">
                             <td>{{ user.name }}</td>
                             <td class="{{ u_class }}">{{ "%.1f"|format(u_rate) }}%</td>
                             <td>{{ u_sum.completed }}</td>
                             <td>{{ u_sum.rest }}</td>
-                            <td>--</td>
+                            <td>{{ u_sum.none_count }}</td>
+                            <td>{{ u_sum.total_days }}</td>
                         </tr>
                         {% for tkey, tinfo in report.get(user.userid, {}).items() %}
                             {% set t_rate = tinfo.rate %}
-                            {% if t_rate >=80 %}{% set t_class="rate-high" %}{% elif t_rate >=50 %}{% set t_class="rate-mid" %}{% else %}{% set t_class="rate-low" %}{% endif %}
+                            {% if t_rate >=80 %}{% set t_class="rate-high" %}
+                            {% elif t_rate >=50 %}{% set t_class="rate-mid" %}
+                            {% else %}{% set t_class="rate-low" %}{% endif %}
                             <tr class="task-row">
                                 <td>{{ tinfo.task_name }}</td>
                                 <td class="{{ t_class }}">{{ "%.1f"|format(t_rate) }}%</td>
                                 <td>{{ tinfo.completed }}</td>
                                 <td>{{ tinfo.rest }}</td>
-                                <td class="day-col">{{ tinfo.total_days }}</td>
+                                <td>{{ tinfo.none_count }}</td>
+                                <td>{{ tinfo.total_days }}</td>
                             </tr>
                         {% endfor %}
                     {% endfor %}
@@ -188,6 +199,7 @@ th {
             </table>
         </div>
 
+        <!-- ▼ 部課別タスク集計 ▼ -->
         <div id="task-report" style="display:none;">
             <table>
                 <thead>
@@ -197,18 +209,22 @@ th {
                         <th class="col-fixed">達成率</th>
                         <th class="col-fixed">完了</th>
                         <th class="col-fixed">休み</th>
+                        <th class="col-fixed">無</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for group, tasks_in_group in task_report.items() %}
                     {% for t_name, t_info in tasks_in_group.items() %}
-                        {% if t_info.rate >= 80 %}{% set rate_class="rate-high" %}{% elif t_info.rate >=50 %}{% set rate_class="rate-mid" %}{% else %}{% set rate_class="rate-low" %}{% endif %}
+                        {% if t_info.rate >= 80 %}{% set rate_class="rate-high" %}
+                        {% elif t_info.rate >=50 %}{% set rate_class="rate-mid" %}
+                        {% else %}{% set rate_class="rate-low" %}{% endif %}
                         <tr>
                             {% if loop.first %}<td rowspan="{{ tasks_in_group|length }}">{{ group }}</td>{% endif %}
                             <td>{{ t_name }}</td>
                             <td class="{{ rate_class }}">{{ "%.1f"|format(t_info.rate) }}%</td>
                             <td>{{ t_info.completed }}</td>
                             <td>{{ t_info.rest }}</td>
+                            <td>{{ t_info.none_count }}</td>
                         </tr>
                     {% endfor %}
                     {% set gsum = task_group_summary.get(group) %}
@@ -217,6 +233,7 @@ th {
                         <td>{{ "%.1f"|format(gsum.rate) }}%</td>
                         <td>{{ gsum.completed }}</td>
                         <td>{{ gsum.rest }}</td>
+                        <td>{{ gsum.none_count }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>
