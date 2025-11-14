@@ -273,11 +273,28 @@ def monthly_report():
 
     from config import SYSTEM_START_DATE
 
+    # 対象月の開始日と終了日
     first_day = date(year, month, 1)
     last_day = date(year, month, cal.monthrange(year, month)[1])
     effective_first_day = max(first_day, SYSTEM_START_DATE)
 
-    day_list = [effective_first_day + timedelta(days=i) for i in range((min(last_day, today) - effective_first_day).days + 1)]
+    # --- ここを修正した部分 ---
+    # 当月かどうか
+    is_current_month = (year == today.year and month == today.month)
+
+    if is_current_month:
+        # 当月は前日まで
+        effective_last_day = today - timedelta(days=1)
+    else:
+        # 過去月は月末まで
+        effective_last_day = last_day
+
+    # 範囲が逆転しないよう min() を使う（初月など安全対策）
+    day_list = [
+        effective_first_day + timedelta(days=i)
+        for i in range((min(effective_last_day, last_day) - effective_first_day).days + 1)
+    ]
+    # --- 修正ここまで ---
 
     # 前月・翌月
     prev_year, prev_month = (year - 1, 12) if month == 1 else (year, month - 1)
@@ -428,4 +445,4 @@ if __name__ == "__main__":
             print("❌ DB 作成エラー:", e)
 
     port = int(os.environ.get("PORT", 5000))  # ← Render対応
-    app.run(host="0.0.0.0", port=port, debug=False)  # debug=Falseにしておく
+    app.run(host="0.0.0.0", port=port, debug=True)  # debug=Falseにしておく
