@@ -9,11 +9,6 @@ import os
 
 app = Flask(__name__)
 
-app = Flask(__name__)
-
-# ProxyFixの設定を「最も標準的」なもの1行だけにします。
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-
 # ミドルウェアとして適用
 app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/task_manager')
 # --- DATABASE ---
