@@ -9,14 +9,10 @@ import os
 
 app = Flask(__name__)
 
-class PrefixMiddleware(object):
-    def __init__(self, app, prefix=''):
-        self.app = app
-        self.prefix = prefix
-    def __call__(self, environ, start_response):
-        # 全てのリクエストに対して強制的に /task_manager という接頭辞を認識させる
-        environ['SCRIPT_NAME'] = self.prefix
-        return self.app(environ, start_response)
+app = Flask(__name__)
+
+# ProxyFixの設定を「最も標準的」なもの1行だけにします。
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # ミドルウェアとして適用
 app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/task_manager')
