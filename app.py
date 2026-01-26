@@ -9,20 +9,17 @@ import os
 
 app = Flask(__name__)
 
-# これまでの設定：
-# app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+class PrefixMiddleware(object):
+    def __init__(self, app, prefix=''):
+        self.app = app
+        self.prefix = prefix
+    def __call__(self, environ, start_response):
+        # 全てのリクエストに対して強制的に /task_manager という接頭辞を認識させる
+        environ['SCRIPT_NAME'] = self.prefix
+        return self.app(environ, start_response)
 
-# 【修正後】もしこれでもダメなら、以下のように「直接」パスを書き換えるコードを差し込みます
-@app.before_request
-def handle_proxy_prefix():
-    # Nginx から送られてくる /task_manager を強制的に認識させる
-    prefix = request.headers.get('X-Forwarded-Prefix')
-    if prefix:
-        # Flask の内部的なパス計算に prefix を強制注入
-        request.environ['SCRIPT_NAME'] = prefix
-        
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secretkey')
-
+# ミドルウェアとして適用
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/task_manager')
 # --- DATABASE ---
 # Supabase（推奨: トランザクションプーラー6543番ポート）に接続
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
