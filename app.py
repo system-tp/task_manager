@@ -9,9 +9,24 @@ import os
 
 app = Flask(__name__)
 
+# 1. ログイン維持に絶対必要（これがないと500エラー）
 app.config['SECRET_KEY'] = 'secret-key-12345'
 
+# 2. Nginxとの通信を円滑にする（これがないとURLが壊れる）
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# 3. /task_manager/task_manager/... という二重パスを防ぐ
+class PrefixMiddleware(object):
+    def __init__(self, app, prefix=''):
+        self.app = app
+        self.prefix = prefix
+    def __call__(self, environ, start_response):
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
+        return self.app(environ, start_response)
+
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/task_manager')
 
 # --- DATABASE ---
 # Supabase（推奨: トランザクションプーラー6543番ポート）に接続
