@@ -3,10 +3,24 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
+from werkzeug.middleware.proxy_fix import ProxyFix
 import calendar
 import os
 
 app = Flask(__name__)
+
+# これまでの設定：
+# app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# 【修正後】もしこれでもダメなら、以下のように「直接」パスを書き換えるコードを差し込みます
+@app.before_request
+def handle_proxy_prefix():
+    # Nginx から送られてくる /task_manager を強制的に認識させる
+    prefix = request.headers.get('X-Forwarded-Prefix')
+    if prefix:
+        # Flask の内部的なパス計算に prefix を強制注入
+        request.environ['SCRIPT_NAME'] = prefix
+        
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secretkey')
 
 # --- DATABASE ---
@@ -260,9 +274,15 @@ def update_status():
 @app.route("/report/monthly")
 @login_required
 def monthly_report():
-    from datetime import timedelta
-    import calendar
+    from datetime import timedelta, date
     import calendar as cal
+
+    # --- 達成率関数（先に定義） ---
+    def calc_rate(completed, rest, none_count, total_days):
+        if rest + none_count == total_days:
+            return "--"
+        denom = total_days - rest
+        return round((completed + none_count) / denom * 100, 1) if denom > 0 else 0
 
     year_str = request.args.get("year")
     month_str = request.args.get("month")
@@ -273,28 +293,13 @@ def monthly_report():
 
     from config import SYSTEM_START_DATE
 
-    # 対象月の開始日と終了日
     first_day = date(year, month, 1)
     last_day = date(year, month, cal.monthrange(year, month)[1])
     effective_first_day = max(first_day, SYSTEM_START_DATE)
 
-    # --- ここを修正した部分 ---
-    # 当月かどうか
-    is_current_month = (year == today.year and month == today.month)
-
-    if is_current_month:
-        # 当月は前日まで
-        effective_last_day = today - timedelta(days=1)
-    else:
-        # 過去月は月末まで
-        effective_last_day = last_day
-
-    # 範囲が逆転しないよう min() を使う（初月など安全対策）
-    day_list = [
-        effective_first_day + timedelta(days=i)
-        for i in range((min(effective_last_day, last_day) - effective_first_day).days + 1)
-    ]
-    # --- 修正ここまで ---
+    last_effective_day = min(last_day, today - timedelta(days=1))  # 当日を除外
+    day_list = [effective_first_day + timedelta(days=i)
+                for i in range((last_effective_day - effective_first_day).days + 1)]
 
     # 前月・翌月
     prev_year, prev_month = (year - 1, 12) if month == 1 else (year, month - 1)
@@ -308,7 +313,9 @@ def monthly_report():
     user_ids = [u.userid for u in users]
 
     # --- タスク取得 ---
-    tasks = Task.query.filter(Task.user_id.in_(user_ids)).order_by(Task.user_id.asc(), Task.taskkey.asc()).all() if user_ids else []
+    tasks = Task.query.filter(Task.user_id.in_(user_ids)).order_by(
+        Task.user_id.asc(), Task.taskkey.asc()
+    ).all() if user_ids else []
 
     # --- TaskStatus取得 ---
     taskkeys = [t.taskkey for t in tasks]
@@ -333,15 +340,18 @@ def monthly_report():
     report = {}
     user_summary = {}
     group_summary = {}
-    overall_summary = {"completed":0,"rest":0,"none_count":0,"total_days":0,"task_count":0}
+    overall_summary = {"completed": 0, "rest": 0, "none_count": 0, "total_days": 0, "task_count": 0}
 
     for task in tasks:
         user_id = task.user_id
+
         completed = sum(1 for d in day_list if status_dict.get(task.taskkey, {}).get(d) == 1)
         rest = sum(1 for d in day_list if status_dict.get(task.taskkey, {}).get(d) == 2)
         none_count = sum(1 for d in day_list if status_dict.get(task.taskkey, {}).get(d) == 3)
         total_days = len(day_list)
-        rate = (completed / (total_days - rest - none_count) * 100) if (total_days - rest - none_count) > 0 else 0
+
+        # ★ タスク単位の達成率追加
+        rate = calc_rate(completed, rest, none_count, total_days)
 
         report.setdefault(user_id, {})[task.taskkey] = {
             "task_name": task.name,
@@ -349,32 +359,40 @@ def monthly_report():
             "rest": rest,
             "none_count": none_count,
             "total_days": total_days,
-            "rate": rate
+            "rate": rate,    # ← 追加
         }
 
-        user_summary.setdefault(user_id, {"completed":0,"rest":0,"none_count":0,"total_days":0,"task_count":0})
+        # --- user_summary 集計 ---
+        user_summary.setdefault(user_id, {"completed": 0, "rest": 0,
+                                          "none_count": 0, "total_days": 0, "task_count": 0})
         user_summary[user_id]["completed"] += completed
         user_summary[user_id]["rest"] += rest
         user_summary[user_id]["none_count"] += none_count
         user_summary[user_id]["total_days"] += total_days
         user_summary[user_id]["task_count"] += 1
 
+        # --- group_summary 集計 ---
         user_obj = next((u for u in users if u.userid == user_id), None)
         group_name = user_obj.group if user_obj and user_obj.group else "その他"
-        group_summary.setdefault(group_name, {"completed":0,"rest":0,"none_count":0,"total_days":0,"task_count":0})
+
+        group_summary.setdefault(group_name,
+                                 {"completed": 0, "rest": 0, "none_count": 0,
+                                  "total_days": 0, "task_count": 0})
+
         group_summary[group_name]["completed"] += completed
         group_summary[group_name]["rest"] += rest
         group_summary[group_name]["none_count"] += none_count
         group_summary[group_name]["total_days"] += total_days
         group_summary[group_name]["task_count"] += 1
 
+        # --- overall summary ---
         overall_summary["completed"] += completed
         overall_summary["rest"] += rest
         overall_summary["none_count"] += none_count
         overall_summary["total_days"] += total_days
         overall_summary["task_count"] += 1
 
-    # --- タスク単位集計 ---
+    # --- タスク単位集計（部課別） ---
     task_report = {}
     task_group_summary = {}
 
@@ -383,35 +401,48 @@ def monthly_report():
         group_name = user_obj.group if user_obj and user_obj.group else "その他"
 
         task_report.setdefault(group_name, {})
-        task_group_summary.setdefault(group_name, {"completed":0,"rest":0,"none_count":0,"total_days":0,"task_count":0})
+        task_group_summary.setdefault(group_name,
+                                      {"completed": 0, "rest": 0, "none_count": 0,
+                                       "total_days": 0, "task_count": 0})
 
-        t = task_report[group_name].setdefault(task.name, {"completed":0, "rest":0, "none_count":0, "total_days":0, "rate":0})
+        t = task_report[group_name].setdefault(task.name, {"completed": 0, "rest": 0,
+                                                           "none_count": 0, "total_days": 0,
+                                                           "rate": 0})
 
         for d in day_list:
             status = status_dict.get(task.taskkey, {}).get(d)
-            if status == 1:
+            if status == 1:  # 済
                 t["completed"] += 1
                 task_group_summary[group_name]["completed"] += 1
-            elif status == 2:
+            elif status == 2:  # 休
                 t["rest"] += 1
                 task_group_summary[group_name]["rest"] += 1
-            elif status == 3:
+            elif status == 3:  # 無
                 t["none_count"] += 1
                 task_group_summary[group_name]["none_count"] += 1
+
             t["total_days"] += 1
             task_group_summary[group_name]["total_days"] += 1
 
         task_group_summary[group_name]["task_count"] += 1
 
-    # --- 率計算 ---
+    # --- サマリーの rate 計算 ---
+    for user_id, summary in user_summary.items():
+        summary["rate"] = calc_rate(summary["completed"], summary["rest"],
+                                    summary["none_count"], summary["total_days"])
+
+    for group, summary in group_summary.items():
+        summary["rate"] = calc_rate(summary["completed"], summary["rest"],
+                                    summary["none_count"], summary["total_days"])
+
     for group, tasks_in_group in task_report.items():
         for t_name, t_info in tasks_in_group.items():
-            denom = t_info["total_days"] - t_info["rest"] - t_info["none_count"]
-            t_info["rate"] = (t_info["completed"] / denom * 100) if denom > 0 else 0
+            t_info["rate"] = calc_rate(t_info["completed"], t_info["rest"],
+                                       t_info["none_count"], t_info["total_days"])
 
     for group, summary in task_group_summary.items():
-        denom = summary["total_days"] - summary["rest"] - summary["none_count"]
-        summary["rate"] = (summary["completed"] / denom * 100) if denom > 0 else 0
+        summary["rate"] = calc_rate(summary["completed"], summary["rest"],
+                                    summary["none_count"], summary["total_days"])
 
     return render_template(
         "monthly_report.html",
