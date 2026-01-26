@@ -11,8 +11,6 @@ app = Flask(__name__)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# ミドルウェアとして適用
-app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/task_manager')
 # --- DATABASE ---
 # Supabase（推奨: トランザクションプーラー6543番ポート）に接続
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
