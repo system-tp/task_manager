@@ -9,7 +9,8 @@ CREATE TABLE "user" (
     userid SERIAL PRIMARY KEY,
     name VARCHAR(50),
     "group" VARCHAR(50),
-    admin_id VARCHAR(50) REFERENCES admin(account_id)
+    admin_id VARCHAR(50) REFERENCES admin(account_id),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE task_name (

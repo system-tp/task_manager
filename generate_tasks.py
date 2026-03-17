@@ -2,7 +2,7 @@ from app import app, db, User, TaskName, Task
 
 def generate_tasks_for_all_users():
     # ユーザーは userid 昇順
-    users = User.query.order_by(User.userid.asc()).all()
+    users = User.query.filter(User.is_deleted.is_(False)).order_by(User.userid.asc()).all()
     # タスク名は taskkey 昇順
     task_names = TaskName.query.order_by(TaskName.taskkey.asc()).all()
 

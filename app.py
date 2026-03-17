@@ -70,6 +70,7 @@ class User(db.Model):
     name = db.Column(db.String(50))
     group = db.Column(db.String(50))
     admin_id = db.Column(db.String(50))
+    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     @property
     def id(self):
@@ -132,9 +133,9 @@ def dashboard():
 
     # --- ユーザー取得 ---
     if current_user.role == "super_admin":
-        users = User.query.order_by(User.userid.asc()).all()
+        users = User.query.filter(User.is_deleted.is_(False)).order_by(User.userid.asc()).all()
     else:
-        users = User.query.filter_by(admin_id=current_user.id).order_by(User.userid.asc()).all()
+        users = User.query.filter_by(admin_id=current_user.id).filter(User.is_deleted.is_(False)).order_by(User.userid.asc()).all()
 
     # --- タスク取得 ---
     user_ids = [u.userid for u in users]
@@ -312,9 +313,9 @@ def monthly_report():
 
     # --- ユーザー取得 ---
     if current_user.role == "super_admin":
-        users = User.query.order_by(User.userid.asc()).all()
+        users = User.query.filter(User.is_deleted.is_(False)).order_by(User.userid.asc()).all()
     else:
-        users = User.query.filter_by(admin_id=current_user.id).order_by(User.userid.asc()).all()
+        users = User.query.filter_by(admin_id=current_user.id).filter(User.is_deleted.is_(False)).order_by(User.userid.asc()).all()
     user_ids = [u.userid for u in users]
 
     # --- タスク取得 ---

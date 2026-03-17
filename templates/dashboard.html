@@ -333,7 +333,7 @@ async function updateStatus(btn, next) {
     if(hidden) hidden.value = next;
 
     try {
-        const res = await fetch("/update_status", {
+        const res = await fetch("{{ url_for('update_status') }}", {
             method:"POST",
             headers:{"Content-Type":"application/json"},
             body:JSON.stringify({
