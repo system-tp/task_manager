@@ -140,6 +140,59 @@ td.task-name {
     appearance: none;             
 }
 
+/* --- モーダルのスタイル（追加） --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+.modal-title {
+    margin-top: 0;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+.modal-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.modal-btn {
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+}
+.modal-close-btn {
+    background-color: #7f8c8d;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    width: 100%;
+}
+
 /* --- レスポンシブ対応 --- */
 @media (max-width: 768px) {
     .table-wrapper { width: 100% !important; padding: 0 5px; }
@@ -233,7 +286,12 @@ td.task-name {
     </tr>
     {% for user in users_in_group %}
     <tr class="user-row" data-group="{{ group }}">
-        <td>{{ user.name }}</td>
+        <td class="user-name-clickable" 
+            style="cursor: default; color: inherit;"
+            data-userid="{{ user.userid }}" 
+            data-username="{{ user.name }}">
+            {{ user.name }}
+        </td>
         {% for day in days %}<td class="{% if day == today %}today-col{% endif %}"></td>{% endfor %}
     </tr>
     {% set user_tasks = tasks_by_user.get(user.userid, []) %}
@@ -245,9 +303,9 @@ td.task-name {
             {% set status = status_dict.get(task.taskkey, {}).get(day, 0) %}
             <td class="{% if day == today %}today-col{% endif %}">
                 <button type="button" class="status-btn status-{{ status }}"
-                        data-task="{{ task.taskkey }}"
-                        data-day="{{ day.isoformat() }}"
-                        {% if day > today or day < system_start_date %}disabled{% endif %}>
+                    data-task="{{ task.taskkey }}"
+                    data-taskname="{{ task.name }}"  data-day="{{ day.isoformat() }}" 
+                    {% if day > today or day < system_start_date %}disabled{% endif %}>
                     {% if status == 0 %}未{% elif status == 1 %}済{% elif status == 2 %}休{% elif status == 3 %}無{% endif %}
                 </button>
                 <input type="hidden"
@@ -275,55 +333,221 @@ td.task-name {
 </div>
 
 <script>
-document.querySelectorAll('.status-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        if (btn.disabled) return;
-        e.stopPropagation();
-        document.querySelectorAll('.status-menu').forEach(m => m.remove());
-        const menu = document.createElement('div');
-        menu.className = 'status-menu';
-        menu.style.position = 'absolute';
-        menu.style.background = '#fff';
-        menu.style.border = '1px solid #ccc';
-        menu.style.borderRadius = '6px';
-        menu.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-        menu.style.zIndex = 1000;
+// ページが完全に読み込まれてから実行する（安全対策）
+document.addEventListener('DOMContentLoaded', () => {
 
-        const options = [
-            {label:'未', value:0, color:'#e74c3c'},
-            {label:'済', value:1, color:'#2980b9'},
-            {label:'休', value:2, color:'#f1c40f', textColor:'#000'},
-            {label:'無', value:3, color:'#7f8c8d'}
-        ];
+    // --- 1. 通常のステータスボタン（単体変更）の処理 ---
+    document.querySelectorAll('.status-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (btn.disabled) return;
+            e.stopPropagation(); // イベントのバブリングを止める
+            
+            // 既存のメニューがあれば削除
+            document.querySelectorAll('.status-menu').forEach(m => m.remove());
+            
+            const menu = document.createElement('div');
+            menu.className = 'status-menu';
+            menu.style.position = 'absolute';
+            menu.style.background = '#fff';
+            menu.style.border = '1px solid #ccc';
+            menu.style.borderRadius = '6px';
+            menu.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+            menu.style.zIndex = 1000;
 
-        options.forEach(opt => {
-            const item = document.createElement('div');
-            item.textContent = opt.label;
-            item.style.padding = '4px 8px';
-            item.style.cursor = 'pointer';
-            item.style.color = opt.textColor || '#fff';
-            item.style.background = opt.color;
-            item.style.borderRadius = '4px';
-            item.style.margin = '3px';
-            item.style.textAlign = 'center';
-            item.addEventListener('click', async () => {
-                await updateStatus(btn, opt.value);
-                menu.remove();
+            const options = [
+                {label:'未', value:0, color:'#e74c3c'},
+                {label:'済', value:1, color:'#2980b9'},
+                {label:'休', value:2, color:'#f1c40f', textColor:'#000'},
+                {label:'無', value:3, color:'#7f8c8d'}
+            ];
+
+            options.forEach(opt => {
+                const item = document.createElement('div');
+                item.textContent = opt.label;
+                item.style.padding = '4px 8px';
+                item.style.cursor = 'pointer';
+                item.style.color = opt.textColor || '#fff';
+                item.style.background = opt.color;
+                item.style.borderRadius = '4px';
+                item.style.margin = '3px';
+                item.style.textAlign = 'center';
+                item.addEventListener('click', async () => {
+                    await updateStatus(btn, opt.value);
+                    menu.remove();
+                });
+                menu.appendChild(item);
             });
-            menu.appendChild(item);
+
+            document.body.appendChild(menu);
+            const rect = btn.getBoundingClientRect();
+            menu.style.left = `${rect.left + window.scrollX}px`;
+            menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+        });
+    });
+
+    // 画面のどこかをクリックしたら単体メニューを閉じる
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.status-menu').forEach(m => m.remove());
+    });
+
+    // --- 2. グループ絞り込み機能 ---
+    const groupFilter = document.getElementById('groupFilter');
+    if (groupFilter) {
+        groupFilter.addEventListener('change', function() {
+            const selected = this.value;
+            document.querySelectorAll('tbody tr').forEach(tr => {
+                const group = tr.getAttribute('data-group');
+                if (!group) return;
+                if (selected === 'all' || group === selected) {
+                    tr.style.display = '';
+                } else {
+                    tr.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // --- 3. 一括登録モーダルの制御（チェックボックス対応版） ---
+    const bulkModal = document.getElementById('bulkModal');
+    const targetUserNameSpan = document.getElementById('targetUserName');
+    const modalTaskContainer = document.getElementById('modalTaskContainer');
+    const selectAllTasks = document.getElementById('selectAllTasks');
+    let currentModalUserId = null;
+
+    const currentDays = [
+        {% for day in days %}
+        "{{ day.isoformat() }}",
+        {% endfor %}
+    ];
+
+    // ユーザー名クリック時
+    document.querySelectorAll('.user-name-clickable').forEach(td => {
+        td.addEventListener('click', (e) => {
+            e.preventDefault();
+            currentModalUserId = td.dataset.userid;
+            targetUserNameSpan.textContent = td.dataset.username;
+
+            // モーダル内のタスクコンテナをクリア
+            modalTaskContainer.innerHTML = '';
+
+            const taskMap = new Map();
+            
+            // 💡 クリックされたユーザーの行（tr）を取得
+            const userRow = td.closest('tr');
+            
+            // 次の行から順番にチェックし、そのユーザーのタスク行（.task-row）だけをループする
+            let nextRow = userRow.nextElementSibling;
+            while (nextRow) {
+                // 次のユーザー行（.user-row）かグループ行（.group-row）に到達したらループを終了
+                if (nextRow.classList.contains('user-row') || nextRow.classList.contains('group-row')) {
+                    break;
+                }
+                
+                // タスク行（.task-row）であれば、その中にあるステータスボタンからタスク情報を取得
+                if (nextRow.classList.contains('task-row')) {
+                    nextRow.querySelectorAll('.status-btn').forEach(btn => {
+                        const taskId = btn.dataset.task;
+                        const taskName = btn.dataset.taskname; // 先ほど修正した task.name
+                        
+                        if (taskId && taskName) {
+                            taskMap.set(taskId, taskName);
+                        }
+                    });
+                }
+                
+                // さらに次の行へ進む
+                nextRow = nextRow.nextElementSibling;
+            }
+
+            // チェックボックスの動的生成
+            if (taskMap.size === 0) {
+                modalTaskContainer.innerHTML = '<div style="color:#e74c3c; font-size:0.85rem; padding: 5px;">このユーザーのタスクが取得できませんでした。</div>';
+            } else {
+                taskMap.forEach((taskName, taskId) => {
+                    const div = document.createElement('div');
+                    div.style.margin = '6px 0';
+                    div.style.display = 'flex';
+                    div.style.alignItems = 'center';
+                    div.innerHTML = `
+                        <label style="cursor:pointer; font-size:0.9rem; display:flex; align-items:center; gap:8px; width:100%; user-select:none; text-align:left;">
+                            <input type="checkbox" class="modal-task-item" value="${taskId}" checked style="margin:0; width:16px; height:16px;"> 
+                            <span>${taskName}</span>
+                        </label>
+                    `;
+                    modalTaskContainer.appendChild(div);
+                });
+            }
+
+            // 全選択・解除の初期化
+            if (selectAllTasks) selectAllTasks.checked = true;
+
+            if (bulkModal) bulkModal.style.display = 'flex';
+        });
+    });
+
+    // 全選択・解除の連動処理
+    if (selectAllTasks) {
+        selectAllTasks.addEventListener('change', function() {
+            document.querySelectorAll('.modal-task-item').forEach(cb => {
+                cb.checked = selectAllTasks.checked;
+            });
+        });
+    }
+
+    // キャンセル等で閉じる処理
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => { bulkModal.style.display = 'none'; });
+    }
+    window.addEventListener('click', (e) => {
+        if (e.target === bulkModal) { bulkModal.style.display = 'none'; }
+    });
+
+    // 一括保存処理の実行（選択されたタスクのみを送信）
+    window.submitBulkStatus = async function(statusValue) {
+        if (!currentModalUserId) return;
+
+        // チェックが入っているタスクIDをすべて集める
+        const selectedTaskIds = [];
+        document.querySelectorAll('.modal-task-item:checked').forEach(cb => {
+            selectedTaskIds.push(parseInt(cb.value));
         });
 
-        document.body.appendChild(menu);
-        const rect = btn.getBoundingClientRect();
-        menu.style.left = `${rect.left + window.scrollX}px`;
-        menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
-    });
-});
-document.addEventListener('click', () => {
-    document.querySelectorAll('.status-menu').forEach(m => m.remove());
+        if (selectedTaskIds.length === 0) {
+            alert('対象のタスクを少なくとも1つ選択してください。');
+            return;
+        }
+        
+        if (!confirm(`選択された ${selectedTaskIds.length} 個のタスクを一括変更します。よろしいですか？`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch("{{ url_for('update_user_status_all') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentModalUserId,
+                    days: currentDays,
+                    task_ids: selectedTaskIds, // 📊 ここで選択されたタスクID配列を送信
+                    status: statusValue
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                window.location.reload();
+            } else {
+                alert("一括保存エラー: " + (result.error || ""));
+            }
+        } catch (err) {
+            alert("通信エラー: " + err);
+        } finally {
+            if (bulkModal) bulkModal.style.display = 'none';
+        }
+    };
 });
 
-// --- ステータス更新処理共通関数 ---
+// --- ステータス更新処理共通関数（単体用） ---
 async function updateStatus(btn, next) {
     const labels = ['未','済','休','無'];
     btn.classList.remove('status-0','status-1','status-2','status-3');
@@ -350,21 +574,37 @@ async function updateStatus(btn, next) {
         alert("通信エラー:"+err);
     }
 }
-
-// ✅ グループ絞り込み機能
-document.getElementById('groupFilter').addEventListener('change', function() {
-    const selected = this.value;
-    document.querySelectorAll('tbody tr').forEach(tr => {
-        const group = tr.getAttribute('data-group');
-        if (!group) return;
-        if (selected === 'all' || group === selected) {
-            tr.style.display = '';
-        } else {
-            tr.style.display = 'none';
-        }
-    });
-});
 </script>
+
+<div id="bulkModal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-title"><span id="targetUserName"></span> さんのタスク一括変更</div>
+        
+        <div style="text-align: left; margin-bottom: 15px;">
+            <label style="font-weight: bold; font-size: 0.9rem;">1. 対象のタスクを選択してください</label>
+            <div style="margin-top: 5px; margin-bottom: 5px;">
+                <label style="font-size: 0.85rem; color: #2c3e50; cursor: pointer;">
+                    <input type="checkbox" id="selectAllTasks" checked> 全選択 / 全解除
+                </label>
+            </div>
+            <div id="modalTaskContainer" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 6px; background: #fafafa;">
+            </div>
+        </div>
+
+        <div style="text-align: left; margin-bottom: 15px;">
+            <label style="font-weight: bold; font-size: 0.9rem;">2. 変更後のステータスを選択してください</label>
+            <div style="font-size: 0.8rem; color: #7f8c8d; margin-bottom: 8px;">※表示されている期間内の日付が対象になります</div>
+            <div class="modal-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button type="button" class="modal-btn status-0" onclick="submitBulkStatus(0)" style="margin:0;">未登録</button>
+                <button type="button" class="modal-btn status-1" onclick="submitBulkStatus(1)" style="margin:0;">済</button>
+                <button type="button" class="modal-btn status-2" onclick="submitBulkStatus(2)" style="margin:0;">休</button>
+                <button type="button" class="modal-btn status-3" onclick="submitBulkStatus(3)" style="margin:0;">無</button>
+            </div>
+        </div>
+        
+        <button type="button" class="modal-close-btn" id="closeModalBtn" style="margin-top: 5px;">キャンセル</button>
+    </div>
+</div>
 
 </div>
 </body>

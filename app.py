@@ -277,6 +277,65 @@ def update_status():
         app.logger.error("update_status DBエラー: %s", e)
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/update_user_status_all", methods=["POST"])
+@login_required
+def update_user_status_all():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"success": False, "error": "Invalid JSON"}), 400
+
+    try:
+        user_id = int(data.get("user_id"))
+        day_strs = data.get("days", [])
+        task_ids = data.get("task_ids", [])  # 📊 選択されたタスクIDのリストを受け取る
+        status = int(data.get("status"))
+    except Exception:
+        return jsonify({"success": False, "error": "Invalid parameters"}), 400
+
+    if not task_ids:
+        return jsonify({"success": False, "error": "No tasks selected"}), 400
+
+    from config import SYSTEM_START_DATE
+    today = jst_today()
+
+    try:
+        for day_str in day_strs:
+            try:
+                day_date = date.fromisoformat(day_str)
+            except ValueError:
+                continue
+
+            # 未来日やシステム開始前のガード
+            if day_date > today or day_date < SYSTEM_START_DATE:
+                continue
+
+            # 📊 全タスクではなく、選択されたタスクIDのみをループ処理
+            for t_id in task_ids:
+                # 既存レコードを行ロック付きで確認
+                ts = TaskStatus.query.filter_by(
+                    user_id=user_id,
+                    task_id=t_id,
+                    date=day_date
+                ).with_for_update().first()
+
+                if not ts:
+                    ts = TaskStatus(
+                        user_id=user_id,
+                        task_id=t_id,
+                        date=day_date,
+                        status=status
+                    )
+                    db.session.add(ts)
+                else:
+                    ts.status = status
+
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("update_user_status_all DBエラー: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+    
 @app.route("/report/monthly")
 @login_required
 def monthly_report():
