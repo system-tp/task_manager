@@ -267,7 +267,9 @@ td.task-name {
         </select>
     </th>
     {% for day in days %}
-    <th class="{% if day == today %}today-col{% endif %}">
+    <th class="global-day-clickable {% if day == today %}today-col{% endif %}" 
+        style="cursor: default; user-select: none;" 
+        data-day="{{ day.isoformat() }}">
         {{ day.strftime("%m/%d") }}<br>
         {% set weekday = day.weekday() %}
         {% if weekday == 0 %}月{% elif weekday == 1 %}火{% elif weekday == 2 %}水{% elif weekday == 3 %}木
@@ -282,7 +284,13 @@ td.task-name {
     {% for group, users_in_group in groups.items() %}
     <tr class="group-row" data-group="{{ group }}">
         <td>{{ group }}</td>
-        {% for day in days %}<td class="{% if day == today %}today-col{% endif %}"></td>{% endfor %}
+        {% for day in days %}
+        <td class="group-day-clickable {% if day == today %}today-col{% endif %}" 
+            style="cursor: default;" 
+            data-group="{{ group }}" 
+            data-day="{{ day.isoformat() }}">
+        </td>
+        {% endfor %}
     </tr>
     {% for user in users_in_group %}
     <tr class="user-row" data-group="{{ group }}">
@@ -333,16 +341,255 @@ td.task-name {
 </div>
 
 <script>
-// ページが完全に読み込まれてから実行する（安全対策）
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- 1. 通常のステータスボタン（単体変更）の処理 ---
+    // 💡 テーブル枠（.table-container）内の縦・横のスクロール位置を復元する
+    const tableContainer = document.querySelector('.table-container');
+    const scrollTopPos = localStorage.getItem('dashboardScrollTop');
+    const scrollLeftPos = localStorage.getItem('dashboardScrollLeft');
+    
+    if (tableContainer) {
+        if (scrollTopPos) tableContainer.scrollTop = parseInt(scrollTopPos, 10);
+        if (scrollLeftPos) tableContainer.scrollLeft = parseInt(scrollLeftPos, 10);
+    }
+    // 復元したら記憶を削除してクリアに
+    localStorage.removeItem('dashboardScrollTop');
+    localStorage.removeItem('dashboardScrollLeft');
+
+    // --- 一括登録モーダルの制御（ユーザー・グループ・全体共通 ＆ タスク完全重複排除版） ---
+    const bulkModal = document.getElementById('bulkModal');
+    const modalTitle = document.querySelector('.modal-title');
+    const modalTaskContainer = document.getElementById('modalTaskContainer');
+    const selectAllTasks = document.getElementById('selectAllTasks');
+    
+    // 一括処理の実行に必要な情報を格納
+    let currentBulkTarget = {
+        type: null,       // 'user', 'group', 'global'
+        groupName: null,  // グループ名
+        userIds: [],      // 対象ユーザーID
+        days: []          // 対象日付
+    };
+
+    const currentDays = [
+        {% for day in days %}
+        "{{ day.isoformat() }}",
+        {% endfor %}
+    ];
+
+    // 💡 モーダル内にタスクのチェックボックスを生成する共通関数（タスク名で管理）
+    function populateModalTasks(taskNamesSet) {
+        modalTaskContainer.innerHTML = '';
+        if (taskNamesSet.size === 0) {
+            modalTaskContainer.innerHTML = '<div style="color:#e74c3c; font-size:0.85rem; padding: 5px;">対象のタスクが取得できませんでした。</div>';
+        } else {
+            // タスク名をそのままチェックボックスの値（value）にして生成
+            taskNamesSet.forEach(taskName => {
+                const div = document.createElement('div');
+                div.style.margin = '6px 0';
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.innerHTML = `
+                    <label style="cursor:pointer; font-size:0.9rem; display:flex; align-items:center; gap:8px; width:100%; user-select:none; text-align:left;">
+                        <input type="checkbox" class="modal-task-item" value="${taskName}" checked style="margin:0; width:16px; height:16px;"> 
+                        <span>${taskName}</span>
+                    </label>
+                `;
+                modalTaskContainer.appendChild(div);
+            });
+        }
+        if (selectAllTasks) selectAllTasks.checked = true;
+    }
+
+    // ① 個人の名前クリック時
+    document.querySelectorAll('.user-name-clickable').forEach(td => {
+        td.addEventListener('click', (e) => {
+            e.preventDefault();
+            const userId = td.dataset.userid;
+            const userName = td.dataset.username;
+
+            if (modalTitle) modalTitle.innerHTML = `<span id="targetUserName">${userName}</span> さんのタスク一括変更`;
+            currentBulkTarget = { type: 'user', groupName: null, userIds: [userId], days: currentDays };
+
+            // そのユーザーの行からタスク名を重複なく抽出
+            const taskNamesSet = new Set();
+            const userRow = td.closest('tr');
+            let nextRow = userRow ? userRow.nextElementSibling : null;
+            while (nextRow) {
+                if (nextRow.classList.contains('user-row') || nextRow.classList.contains('group-row')) break;
+                if (nextRow.classList.contains('task-row')) {
+                    const btn = nextRow.querySelector('.status-btn');
+                    if (btn && btn.dataset.taskname) taskNamesSet.add(btn.dataset.taskname);
+                }
+                nextRow = nextRow.nextElementSibling;
+            }
+
+            populateModalTasks(taskNamesSet);
+            if (bulkModal) bulkModal.style.display = 'flex';
+        });
+    });
+
+    // ② グループ（部署）の日付マス（グレー）クリック時
+    document.querySelectorAll('.group-day-clickable').forEach(td => {
+        td.addEventListener('click', (e) => {
+            e.preventDefault();
+            const groupName = td.dataset.group;
+            const targetDay = td.dataset.day;
+            const displayDay = targetDay.substring(5).replace('-', '/');
+
+            if (modalTitle) modalTitle.innerHTML = `<span>${groupName} (${displayDay})</span> のタスク一括変更`;
+
+            const userIds = [];
+            document.querySelectorAll(`tr.user-row[data-group="${groupName}"] .user-name-clickable`).forEach(u => {
+                userIds.push(u.dataset.userid);
+            });
+
+            currentBulkTarget = { type: 'group', groupName: groupName, userIds: userIds, days: [targetDay] };
+
+            // そのグループの行からタスク名を重複なく抽出
+            const taskNamesSet = new Set();
+            document.querySelectorAll(`tr.task-row[data-group="${groupName}"]`).forEach(tr => {
+                const btn = tr.querySelector('.status-btn');
+                if (btn && btn.dataset.taskname) taskNamesSet.add(btn.dataset.taskname);
+            });
+
+            populateModalTasks(taskNamesSet);
+            if (bulkModal) bulkModal.style.display = 'flex';
+        });
+    });
+
+    // ③ 最上部の日付ヘッダー（th）クリック時
+    document.querySelectorAll('.global-day-clickable').forEach(th => {
+        th.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetDay = th.dataset.day;
+            const displayDay = targetDay.substring(5).replace('-', '/');
+
+            if (modalTitle) modalTitle.innerHTML = `<span>全体 (${displayDay})</span> のタスク一括変更`;
+
+            const userIds = [];
+            document.querySelectorAll('.user-name-clickable').forEach(u => {
+                userIds.push(u.dataset.userid);
+            });
+
+            currentBulkTarget = { type: 'global', groupName: null, userIds: userIds, days: [targetDay] };
+
+            // 画面上のすべてのタスク名を重複なく抽出
+            const taskNamesSet = new Set();
+            document.querySelectorAll('tr.task-row').forEach(tr => {
+                const btn = tr.querySelector('.status-btn');
+                if (btn && btn.dataset.taskname) taskNamesSet.add(btn.dataset.taskname);
+            });
+
+            populateModalTasks(taskNamesSet);
+            if (bulkModal) bulkModal.style.display = 'flex';
+        });
+    });
+
+    // 全選択・全解除のトグル連動
+    if (selectAllTasks) {
+        selectAllTasks.addEventListener('change', function() {
+            document.querySelectorAll('.modal-task-item').forEach(cb => {
+                cb.checked = selectAllTasks.checked;
+            });
+        });
+    }
+
+    // キャンセル操作
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => { bulkModal.style.display = 'none'; });
+    }
+    window.addEventListener('click', (e) => {
+        if (e.target === bulkModal) bulkModal.style.display = 'none';
+    });
+
+    // 💡 モーダル内のステータスボタンが押された時の共通一括保存処理
+    window.submitBulkStatus = async function(statusValue) {
+        if (currentBulkTarget.userIds.length === 0) return;
+
+        // チェックされた「タスク名」のリストを取得
+        const selectedTaskNames = [];
+        document.querySelectorAll('.modal-task-item:checked').forEach(cb => {
+            selectedTaskNames.push(cb.value);
+        });
+
+        if (selectedTaskNames.length === 0) {
+            alert('対象のタスクを少なくとも1つ選択してください。');
+            return;
+        }
+        
+        if (!confirm(`選択されたタスクを一括変更します。よろしいですか？`)) {
+            return;
+        }
+
+        try {
+            // 💡 画面上の実際のボタン要素を探索して、正しいタスクキー（ID）を見つけて送信する
+            for (const uId of currentBulkTarget.userIds) {
+                
+                // 対象ユーザーの全タスクボタンを取得
+                let selector = `.status-btn[data-task]`;
+                // グループ指定がある場合は絞り込み
+                if (currentBulkTarget.type === 'group' && currentBulkTarget.groupName) {
+                    selector = `tr[data-group="${currentBulkTarget.groupName}"] ${selector}`;
+                }
+
+                // 対象ユーザーかつ、選択されたタスク名に一致する「本物のタスクID」を特定する
+                const targetTaskIds = new Set();
+                document.querySelectorAll(selector).forEach(btn => {
+                    const row = btn.closest('tr');
+                    // 直近の user-row を上方向に辿って、自分自身のユーザーIDかどうか確認
+                    let prevTr = row ? row.previousElementSibling : null;
+                    let foundUserId = null;
+                    while (prevTr) {
+                        if (prevTr.classList.contains('user-row')) {
+                            const nameTd = prevTr.querySelector('.user-name-clickable');
+                            if (nameTd) foundUserId = nameTd.dataset.userid;
+                            break;
+                        }
+                        if (prevTr.classList.contains('group-row')) break;
+                        prevTr = prevTr.previousElementSibling;
+                    }
+
+                    if (foundUserId === uId && selectedTaskNames.includes(btn.dataset.taskname)) {
+                        targetTaskIds.add(parseInt(btn.dataset.task));
+                    }
+                });
+
+                if (targetTaskIds.size > 0) {
+                    // バックエンドへ一括更新リクエスト
+                    await fetch("{{ url_for('update_user_status_all') }}", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            user_id: uId,
+                            days: currentBulkTarget.days,
+                            task_ids: Array.from(targetTaskIds),
+                            status: statusValue
+                        })
+                    });
+                }
+            }
+            // 💡 リロードする直前に、テーブル枠（.table-container）内の縦・横のスクロール位置を両方記憶する
+            const tableContainer = document.querySelector('.table-container');
+            if (tableContainer) {
+                localStorage.setItem('dashboardScrollTop', tableContainer.scrollTop);
+                localStorage.setItem('dashboardScrollLeft', tableContainer.scrollLeft);
+            }
+            window.location.reload();
+        } catch (err) {
+            alert("通信エラーが発生しました: " + err);
+        } finally {
+            if (bulkModal) bulkModal.style.display = 'none';
+        }
+    };
+
+
+    // --- 4. 通常のステータスボタン（単体変更用ポップアップ）の処理 ---
     document.querySelectorAll('.status-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             if (btn.disabled) return;
-            e.stopPropagation(); // イベントのバブリングを止める
+            e.stopPropagation();
             
-            // 既存のメニューがあれば削除
             document.querySelectorAll('.status-menu').forEach(m => m.remove());
             
             const menu = document.createElement('div');
@@ -385,12 +632,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 画面のどこかをクリックしたら単体メニューを閉じる
     document.addEventListener('click', () => {
         document.querySelectorAll('.status-menu').forEach(m => m.remove());
     });
 
-    // --- 2. グループ絞り込み機能 ---
+
+    // --- 5. グループ絞り込み機能 ---
     const groupFilter = document.getElementById('groupFilter');
     if (groupFilter) {
         groupFilter.addEventListener('change', function() {
@@ -406,145 +653,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
-
-    // --- 3. 一括登録モーダルの制御（チェックボックス対応版） ---
-    const bulkModal = document.getElementById('bulkModal');
-    const targetUserNameSpan = document.getElementById('targetUserName');
-    const modalTaskContainer = document.getElementById('modalTaskContainer');
-    const selectAllTasks = document.getElementById('selectAllTasks');
-    let currentModalUserId = null;
-
-    const currentDays = [
-        {% for day in days %}
-        "{{ day.isoformat() }}",
-        {% endfor %}
-    ];
-
-    // ユーザー名クリック時
-    document.querySelectorAll('.user-name-clickable').forEach(td => {
-        td.addEventListener('click', (e) => {
-            e.preventDefault();
-            currentModalUserId = td.dataset.userid;
-            targetUserNameSpan.textContent = td.dataset.username;
-
-            // モーダル内のタスクコンテナをクリア
-            modalTaskContainer.innerHTML = '';
-
-            const taskMap = new Map();
-            
-            // 💡 クリックされたユーザーの行（tr）を取得
-            const userRow = td.closest('tr');
-            
-            // 次の行から順番にチェックし、そのユーザーのタスク行（.task-row）だけをループする
-            let nextRow = userRow.nextElementSibling;
-            while (nextRow) {
-                // 次のユーザー行（.user-row）かグループ行（.group-row）に到達したらループを終了
-                if (nextRow.classList.contains('user-row') || nextRow.classList.contains('group-row')) {
-                    break;
-                }
-                
-                // タスク行（.task-row）であれば、その中にあるステータスボタンからタスク情報を取得
-                if (nextRow.classList.contains('task-row')) {
-                    nextRow.querySelectorAll('.status-btn').forEach(btn => {
-                        const taskId = btn.dataset.task;
-                        const taskName = btn.dataset.taskname; // 先ほど修正した task.name
-                        
-                        if (taskId && taskName) {
-                            taskMap.set(taskId, taskName);
-                        }
-                    });
-                }
-                
-                // さらに次の行へ進む
-                nextRow = nextRow.nextElementSibling;
-            }
-
-            // チェックボックスの動的生成
-            if (taskMap.size === 0) {
-                modalTaskContainer.innerHTML = '<div style="color:#e74c3c; font-size:0.85rem; padding: 5px;">このユーザーのタスクが取得できませんでした。</div>';
-            } else {
-                taskMap.forEach((taskName, taskId) => {
-                    const div = document.createElement('div');
-                    div.style.margin = '6px 0';
-                    div.style.display = 'flex';
-                    div.style.alignItems = 'center';
-                    div.innerHTML = `
-                        <label style="cursor:pointer; font-size:0.9rem; display:flex; align-items:center; gap:8px; width:100%; user-select:none; text-align:left;">
-                            <input type="checkbox" class="modal-task-item" value="${taskId}" checked style="margin:0; width:16px; height:16px;"> 
-                            <span>${taskName}</span>
-                        </label>
-                    `;
-                    modalTaskContainer.appendChild(div);
-                });
-            }
-
-            // 全選択・解除の初期化
-            if (selectAllTasks) selectAllTasks.checked = true;
-
-            if (bulkModal) bulkModal.style.display = 'flex';
-        });
-    });
-
-    // 全選択・解除の連動処理
-    if (selectAllTasks) {
-        selectAllTasks.addEventListener('change', function() {
-            document.querySelectorAll('.modal-task-item').forEach(cb => {
-                cb.checked = selectAllTasks.checked;
-            });
-        });
-    }
-
-    // キャンセル等で閉じる処理
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', () => { bulkModal.style.display = 'none'; });
-    }
-    window.addEventListener('click', (e) => {
-        if (e.target === bulkModal) { bulkModal.style.display = 'none'; }
-    });
-
-    // 一括保存処理の実行（選択されたタスクのみを送信）
-    window.submitBulkStatus = async function(statusValue) {
-        if (!currentModalUserId) return;
-
-        // チェックが入っているタスクIDをすべて集める
-        const selectedTaskIds = [];
-        document.querySelectorAll('.modal-task-item:checked').forEach(cb => {
-            selectedTaskIds.push(parseInt(cb.value));
-        });
-
-        if (selectedTaskIds.length === 0) {
-            alert('対象のタスクを少なくとも1つ選択してください。');
-            return;
-        }
-        
-        if (!confirm(`選択された ${selectedTaskIds.length} 個のタスクを一括変更します。よろしいですか？`)) {
-            return;
-        }
-
-        try {
-            const res = await fetch("{{ url_for('update_user_status_all') }}", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: currentModalUserId,
-                    days: currentDays,
-                    task_ids: selectedTaskIds, // 📊 ここで選択されたタスクID配列を送信
-                    status: statusValue
-                })
-            });
-            const result = await res.json();
-            if (result.success) {
-                window.location.reload();
-            } else {
-                alert("一括保存エラー: " + (result.error || ""));
-            }
-        } catch (err) {
-            alert("通信エラー: " + err);
-        } finally {
-            if (bulkModal) bulkModal.style.display = 'none';
-        }
-    };
 });
 
 // --- ステータス更新処理共通関数（単体用） ---
